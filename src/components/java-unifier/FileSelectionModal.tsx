@@ -21,8 +21,9 @@ import { Card, CardContent, CardHeader, CardTitle } from '@/components/ui/card';
 import { Separator } from '@/components/ui/separator';
 import { ProcessedFile, ProjectFile, PackageGroup, UnifiedData } from '@/types/java-unifier';
 import { unifyJavaFiles, downloadTextFile } from '@/lib/file-processor';
-import { Copy, Download, Eye, CheckSquare, Square, FileText, FileCode, Database, Settings2 } from 'lucide-react';
+import { Copy, Download, Eye, CheckSquare, Square, FileText, FileCode, Database, Settings2, Info } from 'lucide-react';
 import { useToast } from '@/hooks/use-toast';
+import { Tooltip, TooltipContent, TooltipProvider, TooltipTrigger } from '@/components/ui/tooltip';
 
 interface FileSelectionModalProps {
   isOpen: boolean;
@@ -31,6 +32,7 @@ interface FileSelectionModalProps {
   onConfirm: (selectedFiles: ProcessedFile[], unifiedContent: string) => void;
   isMultiProjectView: boolean;
   initialProjectName: string;
+  showPreview: boolean; // Added from page.tsx
 }
 
 const getFileIcon = (fileType: string) => {
@@ -61,9 +63,11 @@ export function FileSelectionModal({
   onConfirm,
   isMultiProjectView,
   initialProjectName,
+  showPreview,
 }: FileSelectionModalProps) {
   const [currentProjects, setCurrentProjects] = useState<ProjectFile[]>(projectsToProcess);
   const [unifiedPreview, setUnifiedPreview] = useState("");
+  const [estimatedTokens, setEstimatedTokens] = useState(0);
   const { toast } = useToast();
   const [outputFileName, setOutputFileName] = useState(initialProjectName + "_unificado.txt");
   const [individualFilePreview, setIndividualFilePreview] = useState<{ name: string, content: string, fileType: string } | null>(null);
@@ -87,9 +91,17 @@ export function FileSelectionModal({
 
 
   useEffect(() => {
-    const content = unifyJavaFiles(currentProjects, isMultiProjectView);
-    setUnifiedPreview(content);
-  }, [currentProjects, isMultiProjectView]);
+    if (showPreview) {
+      const content = unifyJavaFiles(currentProjects, isMultiProjectView);
+      setUnifiedPreview(content);
+      // Estimate tokens: 1 token ~ 4 chars. This is a very rough estimate.
+      const tokens = Math.ceil(content.length / 4);
+      setEstimatedTokens(tokens);
+    } else {
+      setUnifiedPreview("");
+      setEstimatedTokens(0);
+    }
+  }, [currentProjects, isMultiProjectView, showPreview]);
 
   const handleFileSelectionChange = (projectId: string, fileId: string, selected: boolean) => {
     setCurrentProjects(prevProjects =>
@@ -97,7 +109,7 @@ export function FileSelectionModal({
         proj.id === projectId
           ? {
               ...proj,
-              files: proj.files.map(file => // Changed from javaFiles to files
+              files: proj.files.map(file =>
                 file.id === fileId ? { ...file, selected } : file
               ),
             }
@@ -110,7 +122,7 @@ export function FileSelectionModal({
     setCurrentProjects(prevProjects =>
       prevProjects.map(proj => ({
         ...proj,
-        files: proj.files.map(file => ({ ...file, selected: selectAll })), // Changed from javaFiles to files
+        files: proj.files.map(file => ({ ...file, selected: selectAll })),
       }))
     );
   };
@@ -121,7 +133,7 @@ export function FileSelectionModal({
         ...proj,
         files: proj.files.map(file => ({
           ...file,
-          selected: file.fileType === 'java' ? selectJava : (selectJava ? false : file.selected) // if selectJava, only java files matching 'selectJava' state, others false. if !selectJava, java files are false, others keep their state.
+          selected: file.fileType === 'java' ? selectJava : (selectJava ? false : file.selected)
         })),
       }))
     );
@@ -154,7 +166,7 @@ export function FileSelectionModal({
   const organizedData: UnifiedData = useMemo(() => {
     return currentProjects.map(project => {
       const packageMap = new Map<string, ProcessedFile[]>();
-      project.files.forEach(file => { // Changed from javaFiles to files
+      project.files.forEach(file => {
         const list = packageMap.get(file.packageName) || [];
         list.push(file);
         packageMap.set(file.packageName, list);
@@ -162,14 +174,13 @@ export function FileSelectionModal({
       
       const packages: PackageGroup[] = Array.from(packageMap.entries())
         .sort(([pkgA], [pkgB]) => {
-             // Custom sort: "(Default Package)" first, then "(Other Project Files)", then alphabetically
             if (pkgA === "(Default Package)") return -1;
             if (pkgB === "(Default Package)") return 1;
-            if (pkgA === "(Other Project Files)" && pkgB !== "(Default Package)") return -1; // Other files before alpha sort
+            if (pkgA === "(Other Project Files)" && pkgB !== "(Default Package)") return -1;
             if (pkgB === "(Other Project Files)" && pkgA !== "(Default Package)") return 1;
             return pkgA.localeCompare(pkgB);
         })
-        .map(([packageName, filesInPkg]) => ({ // Renamed 'files' to 'filesInPkg' to avoid conflict
+        .map(([packageName, filesInPkg]) => ({
           packageName,
           files: filesInPkg.sort((a,b) => a.name.localeCompare(b.name)),
         }));
@@ -249,19 +260,44 @@ export function FileSelectionModal({
 
           {/* Preview Panel */}
           <div className="flex flex-col overflow-hidden">
-             <Label className="font-semibold mb-2 p-1">Vista Previa Unificada</Label>
-            <Textarea
-              value={unifiedPreview}
-              readOnly
-              className="flex-grow font-mono text-xs resize-none h-full bg-muted/50"
-              placeholder="La vista previa del contenido unificado aparecerá aquí..."
-            />
+            <div className="flex items-center mb-2 p-1">
+              <Label className="font-semibold">Vista Previa Unificada</Label>
+              {showPreview && unifiedPreview.length > 0 && (
+                <TooltipProvider delayDuration={100}>
+                  <Tooltip>
+                    <TooltipTrigger asChild>
+                      <span className="ml-1.5 text-xs text-muted-foreground flex items-center cursor-default">
+                        (~{estimatedTokens} tokens aprox.
+                        <Info className="w-3 h-3 ml-1" />)
+                      </span>
+                    </TooltipTrigger>
+                    <TooltipContent side="top" className="max-w-xs p-2">
+                      <p className="text-xs">
+                        Estimación basada en ~4 caracteres por token. El recuento real puede variar según el modelo de IA utilizado.
+                      </p>
+                    </TooltipContent>
+                  </Tooltip>
+                </TooltipProvider>
+              )}
+            </div>
+            {showPreview ? (
+              <Textarea
+                value={unifiedPreview}
+                readOnly
+                className="flex-grow font-mono text-xs resize-none h-full bg-muted/50"
+                placeholder="La vista previa del contenido unificado aparecerá aquí..."
+              />
+            ) : (
+              <div className="flex-grow flex items-center justify-center border rounded-md bg-muted/50">
+                <p className="text-muted-foreground text-sm">La vista previa está desactivada.</p>
+              </div>
+            )}
           </div>
         </div>
 
         <DialogFooter className="p-6 pt-0 border-t mt-auto">
           <Button variant="outline" onClick={onClose}>Cancelar</Button>
-          <Button variant="secondary" onClick={handleCopyToClipboard}><Copy className="mr-2 h-4 w-4" /> Copiar Todo</Button>
+          {showPreview && <Button variant="secondary" onClick={handleCopyToClipboard}><Copy className="mr-2 h-4 w-4" /> Copiar Todo</Button>}
           <Button onClick={handleConfirm}><Download className="mr-2 h-4 w-4" /> Aceptar y Guardar</Button>
         </DialogFooter>
       </DialogContent>
