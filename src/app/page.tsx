@@ -1,3 +1,4 @@
+
 // app/page.tsx
 "use client"
 
@@ -10,17 +11,28 @@ import useLocalStorage from '@/hooks/useLocalStorage';
 import type { ProjectFile, RecentEntry, JavaFile } from '@/types/java-unifier';
 import { processDroppedItems, unifyJavaFiles, downloadTextFile, getProjectBaseName } from '@/lib/file-processor';
 import { useToast } from "@/hooks/use-toast";
+import {
+  AlertDialog,
+  AlertDialogAction,
+  AlertDialogContent,
+  AlertDialogDescription,
+  AlertDialogFooter,
+  AlertDialogHeader,
+  AlertDialogTitle,
+} from "@/components/ui/alert-dialog";
 
 const MAX_RECENTS = 3;
 
 export default function JavaUnifierPage() {
-  const [previewEnabled, setPreviewEnabled] = useLocalStorage<boolean>('java-unifier-previewEnabled', true);
   const [recents, setRecents] = useLocalStorage<RecentEntry[]>('java-unifier-recents', []);
   
   const [processedProjects, setProcessedProjects] = useState<ProjectFile[]>([]);
   const [isModalOpen, setIsModalOpen] = useState(false);
-  const [modalModeMulti, setModalModeMulti] = useState(false);
+  // const [modalModeMulti, setModalModeMulti] = useState(false); // Always multi-project unification mode
   const [modalInitialProjectName, setModalInitialProjectName] = useState("");
+
+  const [isRecentInfoModalOpen, setIsRecentInfoModalOpen] = useState(false);
+  const [selectedRecentForInfoModal, setSelectedRecentForInfoModal] = useState<RecentEntry | null>(null);
 
   const { toast } = useToast();
 
@@ -56,44 +68,31 @@ export default function JavaUnifierPage() {
         if(proj.javaFiles.length > 0) addRecentEntry(proj);
       });
 
-      if (projects.length > 1) { // Multiple projects dropped implies multi-project unification
-        setProcessedProjects(projects);
+      // Always handle as potentially multiple projects for unification logic,
+      // FileSelectionModal will adapt its view based on projects.length
+      setProcessedProjects(projects);
+      if (projects.length > 1) {
         setModalInitialProjectName("Proyectos_Unificados");
-        if (previewEnabled) {
-          setModalModeMulti(true);
-          setIsModalOpen(true);
-        } else {
-          // Directly unify without modal
-          const unifiedContent = unifyJavaFiles(projects, true); // true for multi-project unification
-          downloadTextFile("Proyectos_Unificados_directo.txt", unifiedContent);
-          toast({ title: "Éxito", description: "Proyectos unificados y descargados." });
-        }
-      } else if (projects.length === 1) { // Single project dropped
-        const projectToProcess = projects[0];
-        
-        if (!projectToProcess || projectToProcess.javaFiles.length === 0) {
-             toast({
-                title: "Sin archivos Java",
-                description: `No se encontraron archivos .java en ${projectToProcess?.name || 'el proyecto'}.`,
-                variant: "default",
-            });
-            return;
-        }
-
-        setProcessedProjects([projectToProcess]); 
-        setModalInitialProjectName(getProjectBaseName(projectToProcess.name));
-
-        if (previewEnabled) {
-          setModalModeMulti(false); // Single project view in modal
-          setIsModalOpen(true);
-        } else {
-          // Directly unify single project without modal
-          const unifiedContent = unifyJavaFiles([projectToProcess], false); // false for single project unification
-          downloadTextFile(`${getProjectBaseName(projectToProcess.name)}_unificado_directo.txt`, unifiedContent);
-          toast({ title: "Éxito", description: `Proyecto ${projectToProcess.name} unificado y descargado.` });
-        }
+      } else if (projects.length === 1) {
+        setModalInitialProjectName(getProjectBaseName(projects[0].name));
       }
-      // If projects.length is 0, it's handled by the initial check.
+      
+      // Always true, as per user request to remove toggle
+      const previewEnabled = true; 
+
+      if (previewEnabled) {
+          // setModalModeMulti(projects.length > 1); // This state is no longer needed due to always-on multi-project
+          setIsModalOpen(true);
+      } else {
+          // This 'else' branch for direct download is less likely to be hit if preview is always effectively on.
+          // Kept for logical completeness if previewEnabled were to be re-introduced.
+          const unifiedContent = unifyJavaFiles(projects, projects.length > 1); 
+          const downloadName = projects.length > 1 
+                               ? "Proyectos_Unificados_directo.txt" 
+                               : `${getProjectBaseName(projects[0].name)}_unificado_directo.txt`;
+          downloadTextFile(downloadName, unifiedContent);
+          toast({ title: "Éxito", description: "Proyectos unificados y descargados." });
+      }
 
     } catch (error) {
       console.error("Error processing files:", error);
@@ -110,18 +109,13 @@ export default function JavaUnifierPage() {
   };
 
   const handleSelectRecent = (recent: RecentEntry) => {
-    toast({
-      title: "Re-procesar Reciente",
-      description: `Para re-procesar '${recent.name}', por favor, selecciónalo o arrástralo nuevamente. La funcionalidad de recientes no almacena el contenido de los archivos.`,
-    });
+    setSelectedRecentForInfoModal(recent);
+    setIsRecentInfoModalOpen(true);
   };
 
   return (
     <div className="min-h-screen flex flex-col bg-background text-foreground">
-      <HeaderControls
-        previewEnabled={previewEnabled}
-        onPreviewToggle={setPreviewEnabled}
-      />
+      <HeaderControls />
       <main className="flex-grow container mx-auto px-4 py-8">
         <FileDropzone onFilesProcessed={handleFilesDropped} />
         <RecentFilesList 
@@ -136,9 +130,31 @@ export default function JavaUnifierPage() {
           onClose={() => setIsModalOpen(false)}
           projectsToProcess={processedProjects}
           onConfirm={handleModalConfirm}
-          isMultiProjectView={modalModeMulti} // This is correctly set based on projects.length
+          // isMultiProjectView is now determined by projectsToProcess.length > 1 inside the modal or by default
+          // Forcing true here means it always considers the possibility of multiple projects initially.
+          // The modal itself can then adjust its title/behavior based on actual number of projects.
+          isMultiProjectView={processedProjects.length > 1} 
           initialProjectName={modalInitialProjectName}
         />
+      )}
+      {selectedRecentForInfoModal && (
+        <AlertDialog open={isRecentInfoModalOpen} onOpenChange={setIsRecentInfoModalOpen}>
+          <AlertDialogContent>
+            <AlertDialogHeader>
+              <AlertDialogTitle>Información sobre: "{selectedRecentForInfoModal.name}"</AlertDialogTitle>
+              <AlertDialogDescription>
+                Este elemento aparece en "Recientes" como un recordatorio de los proyectos que has procesado.
+                <br /><br />
+                Debido a las limitaciones de seguridad del navegador, la aplicación no puede recargar automáticamente los archivos.
+                <br /><br />
+                Para volver a procesar '{selectedRecentForInfoModal.name}', por favor, arrastra y suelta la carpeta o los archivos .java correspondientes nuevamente.
+              </AlertDialogDescription>
+            </AlertDialogHeader>
+            <AlertDialogFooter>
+              <AlertDialogAction onClick={() => setIsRecentInfoModalOpen(false)}>Entendido</AlertDialogAction>
+            </AlertDialogFooter>
+          </AlertDialogContent>
+        </AlertDialog>
       )}
       <footer className="text-center p-4 border-t text-sm text-muted-foreground">
         Java Unifier - Adaptado de la aplicación original de Lucas.
