@@ -11,7 +11,7 @@ export interface JavaFile {
 export interface ProjectFile {
   id: string; // A unique ID, could be the original dropped item's name + timestamp
   name: string; // Original file/folder name (e.g., MyProject, project.zip)
-  type: 'folder' | 'zip' | 'rar' | 'file'; // Type of the root item
+  type: 'folder' | 'file'; // Type of the root item (folder or a single .java file)
   javaFiles: JavaFile[]; // List of found/processed Java files
   timestamp: number; // Timestamp of processing
 }
@@ -20,7 +20,7 @@ export interface RecentEntry {
   id: string; // Usually same as ProjectFile id
   name: string; // Name of the project/file
   timestamp: number; // Timestamp of last access
-  type: 'folder' | 'zip' | 'rar' | 'file';
+  type: 'folder' | 'file'; // Simplified type
 }
 
 export interface PackageGroup {

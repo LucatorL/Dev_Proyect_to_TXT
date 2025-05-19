@@ -43,17 +43,13 @@ export function FileDropzone({ onFilesProcessed }: FileDropzoneProps) {
       for (let i = 0; i < items.length; i++) {
         const entry = items[i].webkitGetAsEntry();
         if (entry) {
-          // Basic validation: allow folders, zip, rar, or individual java files for simplicity
-          if (entry.isDirectory || 
-              (entry.isFile && (entry.name.toLowerCase().endsWith('.zip') || 
-                                entry.name.toLowerCase().endsWith('.rar') ||
-                                entry.name.toLowerCase().endsWith('.java')))) {
+          if (entry.isDirectory || (entry.isFile && entry.name.toLowerCase().endsWith('.java'))) {
             entries.push(entry);
           } else {
              toast({
                 title: "Archivo no soportado",
-                description: `El archivo '${entry.name}' no es una carpeta, ZIP, RAR o archivo Java y será ignorado.`,
-                variant: "destructive",
+                description: `El archivo '${entry.name}' no es una carpeta o archivo .java y será ignorado.`,
+                variant: "default", // Changed from destructive to default for less alarm
             });
           }
         }
@@ -67,24 +63,15 @@ export function FileDropzone({ onFilesProcessed }: FileDropzoneProps) {
   const handleManualSelect = (e: React.ChangeEvent<HTMLInputElement>) => {
     const files = e.target.files;
     if (files && files.length > 0) {
-      // For manual selection, webkitGetAsEntry is not available.
-      // We need a different way to represent these File objects as FileSystemEntry-like.
-      // For simplicity, we'll adapt them. This is a limitation of browser APIs.
-      // The `processDroppedItems` function will need to handle raw `File` objects if we pass them.
-      // Given the current structure of processDroppedItems expecting FileSystemFileEntry,
-      // this manual selection needs careful handling or simplification.
-      // Simplification: Assume manual selection also provides folder-like structure if `webkitdirectory` is used.
       const fileList = Array.from(files);
       
-      // Creating mock FileSystemFileEntry for simplicity.
-      // This is a simplified representation. Proper handling for input type="file" multiple/directory is complex.
       const entries: FileSystemFileEntry[] = fileList.map(file => ({
         isFile: true,
-        isDirectory: false, // This is tricky with webkitdirectory
+        isDirectory: false, 
         name: file.name,
         fullPath: (file as any).webkitRelativePath || file.name,
         file: (callback: (file: File) => void) => callback(file),
-        createReader: () => ({} as FileSystemDirectoryReader), // Mock
+        createReader: () => ({} as FileSystemDirectoryReader), 
         getMetadata: () => {},
         moveTo: () => {},
         copyTo: () => {},
@@ -92,12 +79,22 @@ export function FileDropzone({ onFilesProcessed }: FileDropzoneProps) {
         getParent: () => {},
         filesystem: {} as FileSystem,
       }));
-
-      // If input had webkitdirectory, structure might be available via webkitRelativePath
-      // If it was just files, treat them as individual items.
-      // For the spirit of the Java app (project folders), using webkitdirectory is best.
       
-      onFilesProcessed(entries);
+      // Filter to ensure only valid entries are passed to processor,
+      // especially if webkitdirectory was not used or if single files were selected.
+      const validEntries = entries.filter(entry => entry.isDirectory || (entry.isFile && entry.name.toLowerCase().endsWith('.java')));
+
+      if (validEntries.length === 0 && fileList.length > 0) {
+         toast({
+            title: "Sin archivos Java",
+            description: "No se seleccionaron archivos .java válidos o carpetas que los contengan.",
+            variant: "default",
+        });
+        // Clear the file input so the user can try again with the same files if needed
+        if(fileInputRef.current) fileInputRef.current.value = "";
+        return;
+      }
+      onFilesProcessed(validEntries);
     }
   };
 
@@ -107,9 +104,7 @@ export function FileDropzone({ onFilesProcessed }: FileDropzoneProps) {
     }
   };
   
-  // Add `webkitdirectory` attribute for folder selection
   const directoryProps = { webkitdirectory: "true", mozdirectory: "true", directory: "true" };
-
 
   return (
     <div className="p-6 space-y-4">
@@ -120,11 +115,11 @@ export function FileDropzone({ onFilesProcessed }: FileDropzoneProps) {
         onDragLeave={handleDragLeave}
         onDragOver={handleDragOver}
         onDrop={handleDrop}
-        onClick={openFileDialog} // Allow click to open file dialog as well
+        onClick={openFileDialog}
       >
         <UploadCloud className={`w-16 h-16 mb-4 ${isDragging ? 'text-primary' : 'text-muted-foreground'}`} />
         <p className={`text-lg font-semibold ${isDragging ? 'text-primary' : 'text-foreground'}`}>
-          Arrastra aquí una o más carpetas, ZIP o RAR
+          Arrastra aquí carpetas o archivos .java
         </p>
         <p className="text-sm text-muted-foreground">
           o haz clic para seleccionar manualmente

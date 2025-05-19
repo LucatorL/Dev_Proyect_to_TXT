@@ -10,22 +10,17 @@ import useLocalStorage from '@/hooks/useLocalStorage';
 import type { ProjectFile, RecentEntry, JavaFile } from '@/types/java-unifier';
 import { processDroppedItems, unifyJavaFiles, downloadTextFile, getProjectBaseName } from '@/lib/file-processor';
 import { useToast } from "@/hooks/use-toast";
-import { v4 as uuidv4 } from 'uuid'; // For generating unique IDs
-
-// Install uuid: npm install uuid @types/uuid
 
 const MAX_RECENTS = 3;
 
 export default function JavaUnifierPage() {
   const [previewEnabled, setPreviewEnabled] = useLocalStorage<boolean>('java-unifier-previewEnabled', true);
-  const [unifyMultipleEnabled, setUnifyMultipleEnabled] = useLocalStorage<boolean>('java-unifier-unifyMultipleEnabled', false);
   const [recents, setRecents] = useLocalStorage<RecentEntry[]>('java-unifier-recents', []);
   
   const [processedProjects, setProcessedProjects] = useState<ProjectFile[]>([]);
   const [isModalOpen, setIsModalOpen] = useState(false);
   const [modalModeMulti, setModalModeMulti] = useState(false);
   const [modalInitialProjectName, setModalInitialProjectName] = useState("");
-
 
   const { toast } = useToast();
 
@@ -61,8 +56,7 @@ export default function JavaUnifierPage() {
         if(proj.javaFiles.length > 0) addRecentEntry(proj);
       });
 
-      if (unifyMultipleEnabled && projects.length > 1) {
-        // Process multiple projects for unification
+      if (projects.length > 1) { // Multiple projects dropped implies multi-project unification
         setProcessedProjects(projects);
         setModalInitialProjectName("Proyectos_Unificados");
         if (previewEnabled) {
@@ -70,14 +64,12 @@ export default function JavaUnifierPage() {
           setIsModalOpen(true);
         } else {
           // Directly unify without modal
-          const unifiedContent = unifyJavaFiles(projects, true);
+          const unifiedContent = unifyJavaFiles(projects, true); // true for multi-project unification
           downloadTextFile("Proyectos_Unificados_directo.txt", unifiedContent);
           toast({ title: "Éxito", description: "Proyectos unificados y descargados." });
         }
-      } else {
-        // Process projects individually or a single multi-file project
-        const projectToProcess = projects.length > 1 ? projects[0] : projects[0]; // If unifyMultiple not checked, but multiple dropped, process first.
-                                                                                    // Or if only one project dropped.
+      } else if (projects.length === 1) { // Single project dropped
+        const projectToProcess = projects[0];
         
         if (!projectToProcess || projectToProcess.javaFiles.length === 0) {
              toast({
@@ -88,7 +80,7 @@ export default function JavaUnifierPage() {
             return;
         }
 
-        setProcessedProjects([projectToProcess]); // Modal expects an array
+        setProcessedProjects([projectToProcess]); 
         setModalInitialProjectName(getProjectBaseName(projectToProcess.name));
 
         if (previewEnabled) {
@@ -96,11 +88,12 @@ export default function JavaUnifierPage() {
           setIsModalOpen(true);
         } else {
           // Directly unify single project without modal
-          const unifiedContent = unifyJavaFiles([projectToProcess], false);
+          const unifiedContent = unifyJavaFiles([projectToProcess], false); // false for single project unification
           downloadTextFile(`${getProjectBaseName(projectToProcess.name)}_unificado_directo.txt`, unifiedContent);
           toast({ title: "Éxito", description: `Proyecto ${projectToProcess.name} unificado y descargado.` });
         }
       }
+      // If projects.length is 0, it's handled by the initial check.
 
     } catch (error) {
       console.error("Error processing files:", error);
@@ -113,20 +106,13 @@ export default function JavaUnifierPage() {
   };
 
   const handleModalConfirm = (selectedFiles: JavaFile[], unifiedContent: string) => {
-    // The download is handled inside the modal for now.
-    // This callback can be used for any post-confirmation logic if needed.
-    // console.log("Modal confirmed, unified content length:", unifiedContent.length);
+    // Download is handled inside the modal.
   };
 
   const handleSelectRecent = (recent: RecentEntry) => {
-    // This is tricky. We don't have the actual files from a recent entry.
-    // We can re-trigger a file selection dialog, perhaps pre-filling the name if it was a known path (not applicable in web).
-    // Or, if we stored the project structure (too complex for localStorage), we could re-populate.
-    // For now, selecting a recent will just be a placeholder or could show its metadata.
-    // A more practical approach for web might be to re-process if the user drops the same item again.
     toast({
       title: "Re-procesar Reciente",
-      description: `Para re-procesar '${recent.name}', por favor, selecciónalo o arrástralo nuevamente.`,
+      description: `Para re-procesar '${recent.name}', por favor, selecciónalo o arrástralo nuevamente. La funcionalidad de recientes no almacena el contenido de los archivos.`,
     });
   };
 
@@ -135,8 +121,6 @@ export default function JavaUnifierPage() {
       <HeaderControls
         previewEnabled={previewEnabled}
         onPreviewToggle={setPreviewEnabled}
-        unifyMultipleEnabled={unifyMultipleEnabled}
-        onUnifyMultipleToggle={setUnifyMultipleEnabled}
       />
       <main className="flex-grow container mx-auto px-4 py-8">
         <FileDropzone onFilesProcessed={handleFilesDropped} />
@@ -152,7 +136,7 @@ export default function JavaUnifierPage() {
           onClose={() => setIsModalOpen(false)}
           projectsToProcess={processedProjects}
           onConfirm={handleModalConfirm}
-          isMultiProjectView={modalModeMulti}
+          isMultiProjectView={modalModeMulti} // This is correctly set based on projects.length
           initialProjectName={modalInitialProjectName}
         />
       )}

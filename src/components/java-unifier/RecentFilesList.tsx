@@ -5,7 +5,7 @@ import { RecentEntry } from "@/types/java-unifier";
 import { Button } from "@/components/ui/button";
 import { Card, CardContent, CardHeader, CardTitle } from "@/components/ui/card";
 import { ScrollArea } from "@/components/ui/scroll-area";
-import { Folder, FileArchive, File as FileIconLucide, X } from "lucide-react";
+import { Folder, File as FileIconLucide, X } from "lucide-react"; // Removed FileArchive
 import {
   AlertDialog,
   AlertDialogAction,
@@ -32,9 +32,11 @@ export function RecentFilesList({ recents, onSelectRecent, onRemoveRecent }: Rec
   const getIcon = (type: RecentEntry['type']) => {
     switch (type) {
       case 'folder': return <Folder className="w-4 h-4 mr-2 text-accent" />;
-      case 'zip':
-      case 'rar': return <FileArchive className="w-4 h-4 mr-2 text-accent" />;
-      default: return <FileIconLucide className="w-4 h-4 mr-2 text-accent" />;
+      case 'file': return <FileIconLucide className="w-4 h-4 mr-2 text-accent" />;
+      default:
+        // This should ideally not be reached if types are correct
+        const exhaustiveCheck: never = type;
+        return <FileIconLucide className="w-4 h-4 mr-2 text-muted-foreground" />;
     }
   }
 
@@ -73,7 +75,7 @@ export function RecentFilesList({ recents, onSelectRecent, onRemoveRecent }: Rec
                     </AlertDialogHeader>
                     <AlertDialogFooter>
                       <AlertDialogCancel>Cancelar</AlertDialogCancel>
-                      <AlertDialogAction onClick={() => onRemoveRecent(recent.id)} className="bg-destructive hover:bg-destructive/90">
+                      <AlertDialogAction onClick={() => onRemoveRecent(recent.id)} className="bg-destructive hover:bg-destructive/90 text-destructive-foreground">
                         Eliminar
                       </AlertDialogAction>
                     </AlertDialogFooter>
