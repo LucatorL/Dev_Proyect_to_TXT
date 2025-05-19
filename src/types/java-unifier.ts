@@ -1,9 +1,11 @@
-export interface JavaFile {
-  id: string; // path within project can serve as id
-  path: string; // relative path within project e.g., com/example/MyClass.java
-  name: string; // MyClass.java
+
+export interface ProcessedFile {
+  id: string; // Unique ID for the file
+  path: string; // relative path within project e.g., com/example/MyClass.java or config.xml
+  name: string; // MyClass.java or config.xml
   content: string;
-  packageName: string; // com.example
+  packageName: string; // For Java: com.example; for others: (Other Project Files) or similar
+  fileType: string; // e.g., 'java', 'xml', 'txt'
   projectName?: string; // Name of the original project, for multi-project unification
   selected: boolean; // For the selection modal
 }
@@ -12,7 +14,7 @@ export interface ProjectFile {
   id: string; // A unique ID, could be the original dropped item's name + timestamp
   name: string; // Original file/folder name (e.g., MyProject, project.zip)
   type: 'folder' | 'file'; // Type of the root item (folder or a single .java file)
-  javaFiles: JavaFile[]; // List of found/processed Java files
+  files: ProcessedFile[]; // List of found/processed files
   timestamp: number; // Timestamp of processing
 }
 
@@ -20,12 +22,12 @@ export interface RecentEntry {
   id: string; // Usually same as ProjectFile id
   name: string; // Name of the project/file
   timestamp: number; // Timestamp of last access
-  type: 'folder' | 'file'; // Simplified type
+  type: 'folder' | 'file'; // Simplified type, refers to the root dropped item
 }
 
 export interface PackageGroup {
   packageName: string;
-  files: JavaFile[];
+  files: ProcessedFile[];
 }
 
 export interface ProjectGroup {

@@ -8,7 +8,7 @@ import { FileDropzone } from '@/components/java-unifier/FileDropzone';
 import { RecentFilesList } from '@/components/java-unifier/RecentFilesList';
 import { FileSelectionModal } from '@/components/java-unifier/FileSelectionModal';
 import useLocalStorage from '@/hooks/useLocalStorage';
-import type { ProjectFile, RecentEntry, JavaFile } from '@/types/java-unifier';
+import type { ProjectFile, RecentEntry, ProcessedFile } from '@/types/java-unifier';
 import { processDroppedItems, unifyJavaFiles, downloadTextFile, getProjectBaseName } from '@/lib/file-processor';
 import { useToast } from "@/hooks/use-toast";
 import {
@@ -28,7 +28,6 @@ export default function JavaUnifierPage() {
   
   const [processedProjects, setProcessedProjects] = useState<ProjectFile[]>([]);
   const [isModalOpen, setIsModalOpen] = useState(false);
-  // const [modalModeMulti, setModalModeMulti] = useState(false); // Always multi-project unification mode
   const [modalInitialProjectName, setModalInitialProjectName] = useState("");
 
   const [isRecentInfoModalOpen, setIsRecentInfoModalOpen] = useState(false);
@@ -47,7 +46,7 @@ export default function JavaUnifierPage() {
 
   const removeRecentEntry = useCallback((id: string) => {
     setRecents(prevRecents => prevRecents.filter(r => r.id !== id));
-    toast({ title: "Eliminado", description: "Entrada eliminada de recientes." });
+    toast({ title: "Eliminado", description: "Entrada eliminada del historial." });
   }, [setRecents, toast]);
 
   const handleFilesDropped = async (droppedItems: FileSystemFileEntry[]) => {
@@ -55,21 +54,19 @@ export default function JavaUnifierPage() {
 
     try {
       const projects = await processDroppedItems(droppedItems);
-      if (projects.length === 0 || projects.every(p => p.javaFiles.length === 0)) {
+      if (projects.length === 0 || projects.every(p => p.files.length === 0)) {
         toast({
-          title: "Sin archivos Java",
-          description: "No se encontraron archivos .java en los elementos proporcionados o no se pudieron procesar.",
+          title: "Sin archivos soportados",
+          description: "No se encontraron archivos soportados (.java, .xml, .txt, etc.) en los elementos proporcionados o no se pudieron procesar.",
           variant: "default",
         });
         return;
       }
       
       projects.forEach(proj => {
-        if(proj.javaFiles.length > 0) addRecentEntry(proj);
+        if(proj.files.length > 0) addRecentEntry(proj);
       });
 
-      // Always handle as potentially multiple projects for unification logic,
-      // FileSelectionModal will adapt its view based on projects.length
       setProcessedProjects(projects);
       if (projects.length > 1) {
         setModalInitialProjectName("Proyectos_Unificados");
@@ -77,22 +74,7 @@ export default function JavaUnifierPage() {
         setModalInitialProjectName(getProjectBaseName(projects[0].name));
       }
       
-      // Always true, as per user request to remove toggle
-      const previewEnabled = true; 
-
-      if (previewEnabled) {
-          // setModalModeMulti(projects.length > 1); // This state is no longer needed due to always-on multi-project
-          setIsModalOpen(true);
-      } else {
-          // This 'else' branch for direct download is less likely to be hit if preview is always effectively on.
-          // Kept for logical completeness if previewEnabled were to be re-introduced.
-          const unifiedContent = unifyJavaFiles(projects, projects.length > 1); 
-          const downloadName = projects.length > 1 
-                               ? "Proyectos_Unificados_directo.txt" 
-                               : `${getProjectBaseName(projects[0].name)}_unificado_directo.txt`;
-          downloadTextFile(downloadName, unifiedContent);
-          toast({ title: "Éxito", description: "Proyectos unificados y descargados." });
-      }
+      setIsModalOpen(true); // Always open modal for preview/selection
 
     } catch (error) {
       console.error("Error processing files:", error);
@@ -104,8 +86,9 @@ export default function JavaUnifierPage() {
     }
   };
 
-  const handleModalConfirm = (selectedFiles: JavaFile[], unifiedContent: string) => {
+  const handleModalConfirm = (selectedFiles: ProcessedFile[], unifiedContent: string) => {
     // Download is handled inside the modal.
+    // This callback can be used for any post-confirmation logic if needed.
   };
 
   const handleSelectRecent = (recent: RecentEntry) => {
@@ -130,9 +113,6 @@ export default function JavaUnifierPage() {
           onClose={() => setIsModalOpen(false)}
           projectsToProcess={processedProjects}
           onConfirm={handleModalConfirm}
-          // isMultiProjectView is now determined by projectsToProcess.length > 1 inside the modal or by default
-          // Forcing true here means it always considers the possibility of multiple projects initially.
-          // The modal itself can then adjust its title/behavior based on actual number of projects.
           isMultiProjectView={processedProjects.length > 1} 
           initialProjectName={modalInitialProjectName}
         />
@@ -143,11 +123,11 @@ export default function JavaUnifierPage() {
             <AlertDialogHeader>
               <AlertDialogTitle>Información sobre: "{selectedRecentForInfoModal.name}"</AlertDialogTitle>
               <AlertDialogDescription>
-                Este elemento aparece en "Recientes" como un recordatorio de los proyectos que has procesado.
+                Este elemento aparece en el "Historial de Procesados" como un recordatorio de los proyectos que has procesado.
                 <br /><br />
                 Debido a las limitaciones de seguridad del navegador, la aplicación no puede recargar automáticamente los archivos.
                 <br /><br />
-                Para volver a procesar '{selectedRecentForInfoModal.name}', por favor, arrastra y suelta la carpeta o los archivos .java correspondientes nuevamente.
+                Para volver a procesar '{selectedRecentForInfoModal.name}', por favor, arrastra y suelta la carpeta o los archivos correspondientes nuevamente.
               </AlertDialogDescription>
             </AlertDialogHeader>
             <AlertDialogFooter>

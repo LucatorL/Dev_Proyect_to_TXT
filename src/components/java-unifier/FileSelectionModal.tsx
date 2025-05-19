@@ -1,3 +1,4 @@
+
 // components/java-unifier/FileSelectionModal.tsx
 "use client"
 
@@ -18,19 +19,40 @@ import { Textarea } from "@/components/ui/textarea";
 import { Label } from "@/components/ui/label";
 import { Card, CardContent, CardHeader, CardTitle } from '@/components/ui/card';
 import { Separator } from '@/components/ui/separator';
-import { JavaFile, ProjectFile, PackageGroup, ProjectGroup, UnifiedData } from '@/types/java-unifier';
+import { ProcessedFile, ProjectFile, PackageGroup, UnifiedData } from '@/types/java-unifier';
 import { unifyJavaFiles, downloadTextFile } from '@/lib/file-processor';
-import { Copy, Download, Eye, CheckSquare, Square } from 'lucide-react';
+import { Copy, Download, Eye, CheckSquare, Square, FileText, FileCode, Database, Settings2 } from 'lucide-react';
 import { useToast } from '@/hooks/use-toast';
 
 interface FileSelectionModalProps {
   isOpen: boolean;
   onClose: () => void;
   projectsToProcess: ProjectFile[];
-  onConfirm: (selectedFiles: JavaFile[], unifiedContent: string) => void;
+  onConfirm: (selectedFiles: ProcessedFile[], unifiedContent: string) => void;
   isMultiProjectView: boolean;
   initialProjectName: string;
 }
+
+const getFileIcon = (fileType: string) => {
+  switch (fileType) {
+    case 'java':
+      return <FileCode className="w-3.5 h-3.5 mr-1.5 text-blue-500 shrink-0" />;
+    case 'xml':
+    case 'pom':
+      return <Settings2 className="w-3.5 h-3.5 mr-1.5 text-orange-500 shrink-0" />;
+    case 'sql':
+      return <Database className="w-3.5 h-3.5 mr-1.5 text-indigo-500 shrink-0" />;
+    case 'txt':
+    case 'md':
+    case 'properties':
+    case 'csv':
+    case 'yaml':
+    case 'yml':
+    default:
+      return <FileText className="w-3.5 h-3.5 mr-1.5 text-gray-500 shrink-0" />;
+  }
+};
+
 
 export function FileSelectionModal({
   isOpen,
@@ -44,7 +66,7 @@ export function FileSelectionModal({
   const [unifiedPreview, setUnifiedPreview] = useState("");
   const { toast } = useToast();
   const [outputFileName, setOutputFileName] = useState(initialProjectName + "_unificado.txt");
-  const [individualFilePreview, setIndividualFilePreview] = useState<{ name: string, content: string } | null>(null);
+  const [individualFilePreview, setIndividualFilePreview] = useState<{ name: string, content: string, fileType: string } | null>(null);
 
 
   useEffect(() => {
@@ -75,7 +97,7 @@ export function FileSelectionModal({
         proj.id === projectId
           ? {
               ...proj,
-              javaFiles: proj.javaFiles.map(file =>
+              files: proj.files.map(file => // Changed from javaFiles to files
                 file.id === fileId ? { ...file, selected } : file
               ),
             }
@@ -88,13 +110,26 @@ export function FileSelectionModal({
     setCurrentProjects(prevProjects =>
       prevProjects.map(proj => ({
         ...proj,
-        javaFiles: proj.javaFiles.map(file => ({ ...file, selected: selectAll })),
+        files: proj.files.map(file => ({ ...file, selected: selectAll })), // Changed from javaFiles to files
+      }))
+    );
+  };
+  
+  const handleSelectOnlyJava = (selectJava: boolean) => {
+    setCurrentProjects(prevProjects =>
+      prevProjects.map(proj => ({
+        ...proj,
+        files: proj.files.map(file => ({
+          ...file,
+          selected: file.fileType === 'java' ? selectJava : (selectJava ? false : file.selected) // if selectJava, only java files matching 'selectJava' state, others false. if !selectJava, java files are false, others keep their state.
+        })),
       }))
     );
   };
 
+
   const handleConfirm = () => {
-    const allSelectedFiles: JavaFile[] = currentProjects.flatMap(p => p.javaFiles.filter(f => f.selected));
+    const allSelectedFiles: ProcessedFile[] = currentProjects.flatMap(p => p.files.filter(f => f.selected));
     if (allSelectedFiles.length === 0) {
         toast({ title: "Sin selección", description: "Por favor, selecciona al menos un archivo.", variant: "destructive" });
         return;
@@ -118,18 +153,25 @@ export function FileSelectionModal({
 
   const organizedData: UnifiedData = useMemo(() => {
     return currentProjects.map(project => {
-      const packageMap = new Map<string, JavaFile[]>();
-      project.javaFiles.forEach(file => {
+      const packageMap = new Map<string, ProcessedFile[]>();
+      project.files.forEach(file => { // Changed from javaFiles to files
         const list = packageMap.get(file.packageName) || [];
         list.push(file);
         packageMap.set(file.packageName, list);
       });
       
       const packages: PackageGroup[] = Array.from(packageMap.entries())
-        .sort(([pkgA], [pkgB]) => pkgA.localeCompare(pkgB))
-        .map(([packageName, files]) => ({
+        .sort(([pkgA], [pkgB]) => {
+             // Custom sort: "(Default Package)" first, then "(Other Project Files)", then alphabetically
+            if (pkgA === "(Default Package)") return -1;
+            if (pkgB === "(Default Package)") return 1;
+            if (pkgA === "(Other Project Files)" && pkgB !== "(Default Package)") return -1; // Other files before alpha sort
+            if (pkgB === "(Other Project Files)" && pkgA !== "(Default Package)") return 1;
+            return pkgA.localeCompare(pkgB);
+        })
+        .map(([packageName, filesInPkg]) => ({ // Renamed 'files' to 'filesInPkg' to avoid conflict
           packageName,
-          files: files.sort((a,b) => a.name.localeCompare(b.name)),
+          files: filesInPkg.sort((a,b) => a.name.localeCompare(b.name)),
         }));
       
       return { projectName: project.name, packages };
@@ -147,21 +189,24 @@ export function FileSelectionModal({
             {isMultiProjectView ? "Unificar Múltiples Proyectos" : `Seleccionar Archivos de: ${projectsToProcess[0]?.name || 'Proyecto'}`}
           </DialogTitle>
           <DialogDescription>
-            Selecciona los archivos Java que deseas incluir en el archivo unificado.
+            Selecciona los archivos que deseas incluir en el archivo unificado. Los archivos Java están seleccionados por defecto.
           </DialogDescription>
         </DialogHeader>
 
         <div className="flex-grow grid grid-cols-1 md:grid-cols-2 gap-4 overflow-hidden p-6 pt-2">
           {/* Files Selection Panel */}
           <div className="flex flex-col overflow-hidden">
-            <div className="flex items-center justify-between mb-2 p-1 rounded-md bg-secondary">
+            <div className="flex items-center justify-between mb-2 p-1 rounded-md bg-secondary flex-wrap gap-1">
               <Label className="font-semibold px-2">Archivos del Proyecto</Label>
-              <div className="space-x-2">
-                <Button variant="ghost" size="sm" onClick={() => handleSelectAll(true)} title="Seleccionar Todo">
-                  <CheckSquare className="w-4 h-4" />
+              <div className="space-x-1">
+                <Button variant="ghost" size="sm" onClick={() => handleSelectOnlyJava(true)} title="Seleccionar Solo Java">
+                  <FileCode className="w-4 h-4 mr-1" /> Solo Java
+                </Button>
+                 <Button variant="ghost" size="sm" onClick={() => handleSelectAll(true)} title="Seleccionar Todo">
+                  <CheckSquare className="w-4 h-4" /> Todo
                 </Button>
                 <Button variant="ghost" size="sm" onClick={() => handleSelectAll(false)} title="Deseleccionar Todo">
-                  <Square className="w-4 h-4" />
+                  <Square className="w-4 h-4" /> Nada
                 </Button>
               </div>
             </div>
@@ -184,11 +229,12 @@ export function FileSelectionModal({
                                 onCheckedChange={(checked) => handleFileSelectionChange(projectsToProcess.find(p=>p.name === projectGroup.projectName)!.id, file.id, !!checked)}
                                 className="mr-2 shrink-0"
                               />
+                              {getFileIcon(file.fileType)}
                               <Label htmlFor={`${projectGroup.projectName}-${file.id}`} className="truncate cursor-pointer" title={file.name}>
                                 {file.name}
                               </Label>
                             </div>
-                            <Button variant="ghost" size="icon" className="w-6 h-6 shrink-0 opacity-50 group-hover:opacity-100" onClick={() => setIndividualFilePreview({name: file.name, content: file.content})}>
+                            <Button variant="ghost" size="icon" className="w-6 h-6 shrink-0 opacity-50 group-hover:opacity-100" onClick={() => setIndividualFilePreview({name: file.name, content: file.content, fileType: file.fileType})}>
                                <Eye className="w-3.5 h-3.5" />
                             </Button>
                           </li>
@@ -224,7 +270,10 @@ export function FileSelectionModal({
          <Dialog open={!!individualFilePreview} onOpenChange={() => setIndividualFilePreview(null)}>
             <DialogContent className="max-w-2xl h-[70vh] flex flex-col">
                  <DialogHeader>
-                    <DialogTitle>Vista Previa: {individualFilePreview.name}</DialogTitle>
+                    <DialogTitle className="flex items-center">
+                      {getFileIcon(individualFilePreview.fileType)}
+                      Vista Previa: {individualFilePreview.name}
+                    </DialogTitle>
                  </DialogHeader>
                  <ScrollArea className="flex-grow border rounded-md my-4">
                     <pre className="text-xs p-4 font-mono whitespace-pre-wrap break-all">{individualFilePreview.content}</pre>
