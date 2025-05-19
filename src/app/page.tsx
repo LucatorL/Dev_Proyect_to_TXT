@@ -20,6 +20,8 @@ import {
   AlertDialogHeader,
   AlertDialogTitle,
 } from "@/components/ui/alert-dialog";
+import { Button } from '@/components/ui/button';
+import { Github } from 'lucide-react';
 
 const MAX_RECENTS = 3;
 
@@ -32,6 +34,7 @@ export default function JavaUnifierPage() {
 
   const [isRecentInfoModalOpen, setIsRecentInfoModalOpen] = useState(false);
   const [selectedRecentForInfoModal, setSelectedRecentForInfoModal] = useState<RecentEntry | null>(null);
+  const [isPreviewEnabled, setIsPreviewEnabled] = useState(true);
 
   const { toast } = useToast();
 
@@ -68,13 +71,10 @@ export default function JavaUnifierPage() {
       });
 
       setProcessedProjects(projects);
-      if (projects.length > 1) {
-        setModalInitialProjectName("Proyectos_Unificados");
-      } else if (projects.length === 1) {
-        setModalInitialProjectName(getProjectBaseName(projects[0].name));
-      }
+      // Always true for multi-project, name determined by number of projects
+      setModalInitialProjectName(projects.length > 1 ? "Proyectos_Unificados" : getProjectBaseName(projects[0].name));
       
-      setIsModalOpen(true); // Always open modal for preview/selection
+      setIsModalOpen(true); 
 
     } catch (error) {
       console.error("Error processing files:", error);
@@ -88,7 +88,6 @@ export default function JavaUnifierPage() {
 
   const handleModalConfirm = (selectedFiles: ProcessedFile[], unifiedContent: string) => {
     // Download is handled inside the modal.
-    // This callback can be used for any post-confirmation logic if needed.
   };
 
   const handleSelectRecent = (recent: RecentEntry) => {
@@ -98,7 +97,10 @@ export default function JavaUnifierPage() {
 
   return (
     <div className="min-h-screen flex flex-col bg-background text-foreground">
-      <HeaderControls />
+      <HeaderControls 
+        previewEnabled={isPreviewEnabled}
+        onPreviewToggle={setIsPreviewEnabled}
+      />
       <main className="flex-grow container mx-auto px-4 py-8">
         <FileDropzone onFilesProcessed={handleFilesDropped} />
         <RecentFilesList 
@@ -113,8 +115,9 @@ export default function JavaUnifierPage() {
           onClose={() => setIsModalOpen(false)}
           projectsToProcess={processedProjects}
           onConfirm={handleModalConfirm}
-          isMultiProjectView={processedProjects.length > 1} 
+          isMultiProjectView={true} // Always true now
           initialProjectName={modalInitialProjectName}
+          showPreview={isPreviewEnabled}
         />
       )}
       {selectedRecentForInfoModal && (
@@ -136,8 +139,14 @@ export default function JavaUnifierPage() {
           </AlertDialogContent>
         </AlertDialog>
       )}
-      <footer className="text-center p-4 border-t text-sm text-muted-foreground">
-        Java Unifier - Adaptado de la aplicación original de Lucas.
+      <footer className="text-center p-4 border-t text-sm text-muted-foreground flex flex-col sm:flex-row justify-between items-center">
+        <span>Java Unifier - Adaptado de la aplicación original de Lucas.</span>
+        <Button variant="link" asChild className="mt-2 sm:mt-0 text-muted-foreground hover:text-primary">
+          <a href="https://github.com/LucatorL/JavaSourceToTxt/issues" target="_blank" rel="noopener noreferrer">
+            <Github className="mr-2 h-4 w-4" />
+            Reportar un Problema / Sugerencias
+          </a>
+        </Button>
       </footer>
     </div>
   );
