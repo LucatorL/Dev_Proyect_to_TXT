@@ -100,7 +100,6 @@ export default function JavaUnifierPage() {
   };
   
   const handleModalClose = useCallback(() => {
-    // This function is called when the modal is dismissed (X, Esc, Cancel)
     const projectToRemoveId = processedProjects[currentProjectIndexInModal]?.id;
 
     if (!isMultiProjectMode && processedProjects.length > 1 && projectToRemoveId) {
@@ -157,45 +156,65 @@ export default function JavaUnifierPage() {
   };
 
   const changelogContent = `
-    <ul class="list-disc pl-5 space-y-1 text-sm">
-      <li>Versión inicial de Java Unifier.</li>
-      <li>Funcionalidad de arrastrar y soltar para carpetas y archivos soportados.</li>
-      <li>Soporte para tipos de archivo: .java, .xml, .pom, .txt, .properties, .md, .sql, .csv, .yaml, .yml, .classpath, .project, .dat.</li>
-      <li>Modal de selección de archivos con vista previa unificada.</li>
-      <li>Los archivos .java se seleccionan por defecto, otros tipos de archivo están deseleccionados.</li>
-      <li>Descarga del archivo unificado.</li>
-      <li>Historial de procesados (con diálogo informativo sobre limitaciones).</li>
-      <li>Selector de tema (claro/oscuro).</li>
-      <li>Enlace para reportar problemas/sugerencias en GitHub.</li>
-      <li>Estimación de tokens aproximada en la vista previa.</li>
-      <li>Visualización de la versión de la aplicación en la cabecera y changelog.</li>
-      <li>El asistente de IA ahora actualizará este changelog con cada cambio aplicado.</li>
-      <li>Añadida la foto de perfil de GitHub de Lucas junto a su nombre en el pie de página.</li>
-      <li>El texto "aplicación original" en el pie de página ahora enlaza al repositorio de GitHub.</li>
-      <li>La foto de perfil y el nombre "Lucas" en el pie de página ahora enlazan a su perfil de GitHub.</li>
-      <li>Rehabilitado el interruptor "Unificar Múltiples Proyectos" en la cabecera.</li>
-      <li>Añadida navegación por proyectos individuales en el modal de selección cuando "Unificar Múltiples Proyectos" está desactivado, con flechas laterales.</li>
-      <li>En modo de proyecto individual, al descargar, solo ese proyecto se elimina de la lista y el modal permanece abierto si hay más proyectos.</li>
-      <li>Actualización de la versión a 0.1.1.</li>
-      <li>Corregido error de visualización de conteo de tokens negativo.</li>
-      <li>Corregido error de posicionamiento del modal de selección de archivos (estaba cortado).</li>
-      <li>Actualización de la versión a 0.1.2.</li>
-      <li>Corregido un error grave donde proyectos previamente unificados y cerrados podían ser incluidos incorrectamente en unificaciones posteriores. Esto se solucionó asegurando que el estado interno del modal de selección se reinicie completamente cuando cambia la lista de proyectos (usando una 'key' dinámica en el componente).</li>
-      <li>Actualización de la versión a 0.1.3.</li>
-      <li>Ajustado el comportamiento al cerrar el modal de selección de archivos (con "X", Esc o "Cancelar"):
-        <ul class="list-disc pl-5">
-          <li>En modo "Unificar Múltiples Proyectos" (opción activada) O si solo había un proyecto (o ninguno) en el lote actual: la lista `processedProjects` se vaciará y el modal se cerrará.</li>
-          <li>En modo de proyecto individual ("Unificar Múltiples Proyectos" desactivado) Y había más de un proyecto en el lote:
+    <ul class="list-disc pl-5 space-y-2 text-sm">
+      <li>
+        Versión 0.1.4
+        <ul class="list-disc pl-5 space-y-1 mt-1">
+          <li>Ajustado el comportamiento al cerrar el modal de selección de archivos (con "X", Esc o "Cancelar"):
             <ul class="list-disc pl-5">
-                 <li>El proyecto que se estaba visualizando en el modal al momento de cerrarlo se eliminará del lote.</li>
-                 <li>El modal **permanecerá abierto** si quedan otros proyectos en el lote.</li>
-                 <li>Si al eliminar el proyecto el lote queda vacío, el modal se cerrará.</li>
+              <li>En modo "Unificar Múltiples Proyectos" (opción activada) O si solo había un proyecto (o ninguno) en el lote actual: la lista <code>processedProjects</code> se vaciará y el modal se cerrará.</li>
+              <li>En modo de proyecto individual ("Unificar Múltiples Proyectos" desactivado) Y había más de un proyecto en el lote:
+                <ul class="list-disc pl-5">
+                    <li>El proyecto que se estaba visualizando en el modal al momento de cerrarlo se eliminará del lote.</li>
+                    <li>El modal <strong>permanecerá abierto</strong> si quedan otros proyectos en el lote.</li>
+                    <li>Si al eliminar el proyecto el lote queda vacío, el modal se cerrará.</li>
+                </ul>
+              </li>
+              <li>Al arrastrar nuevos archivos, siempre se iniciará con un lote nuevo, reemplazando cualquier proyecto anterior.</li>
             </ul>
           </li>
-          <li>Al arrastrar nuevos archivos, siempre se iniciará con un lote nuevo, reemplazando cualquier proyecto anterior.</li>
         </ul>
       </li>
-      <li>Actualización de la versión a 0.1.4.</li>
+      <li>
+        Versión 0.1.3
+        <ul class="list-disc pl-5 space-y-1 mt-1">
+          <li>Corregido un error grave donde proyectos previamente unificados y cerrados podían ser incluidos incorrectamente en unificaciones posteriores. Esto se solucionó asegurando que el estado interno del modal de selección se reinicie completamente cuando cambia la lista de proyectos (usando una 'key' dinámica en el componente).</li>
+        </ul>
+      </li>
+      <li>
+        Versión 0.1.2
+        <ul class="list-disc pl-5 space-y-1 mt-1">
+          <li>Corregido error de visualización de conteo de tokens negativo.</li>
+          <li>Corregido error de posicionamiento del modal de selección de archivos (estaba cortado).</li>
+        </ul>
+      </li>
+      <li>
+        Versión 0.1.1
+        <ul class="list-disc pl-5 space-y-1 mt-1">
+          <li>Rehabilitado el interruptor "Unificar Múltiples Proyectos" en la cabecera.</li>
+          <li>Añadida navegación por proyectos individuales en el modal de selección cuando "Unificar Múltiples Proyectos" está desactivado, con flechas laterales.</li>
+          <li>En modo de proyecto individual, al descargar, solo ese proyecto se elimina de la lista y el modal permanece abierto si hay más proyectos.</li>
+        </ul>
+      </li>
+      <li>
+        Versión Inicial (0.1.0 y anteriores)
+        <ul class="list-disc pl-5 space-y-1 mt-1">
+          <li>Funcionalidad de arrastrar y soltar para carpetas y archivos soportados.</li>
+          <li>Soporte para tipos de archivo: .java, .xml, .pom, .txt, .properties, .md, .sql, .csv, .yaml, .yml, .classpath, .project, .dat.</li>
+          <li>Modal de selección de archivos con vista previa unificada.</li>
+          <li>Los archivos .java se seleccionan por defecto, otros tipos de archivo están deseleccionados.</li>
+          <li>Descarga del archivo unificado.</li>
+          <li>Historial de procesados (con diálogo informativo sobre limitaciones).</li>
+          <li>Selector de tema (claro/oscuro).</li>
+          <li>Enlace para reportar problemas/sugerencias en GitHub.</li>
+          <li>Estimación de tokens aproximada en la vista previa.</li>
+          <li>Visualización de la versión de la aplicación en la cabecera y changelog.</li>
+          <li>El asistente de IA ahora actualizará este changelog con cada cambio aplicado.</li>
+          <li>Añadida la foto de perfil de GitHub de Lucas junto a su nombre en el pie de página.</li>
+          <li>El texto "aplicación original" en el pie de página ahora enlaza al repositorio de GitHub.</li>
+          <li>La foto de perfil y el nombre "Lucas" en el pie de página ahora enlazan a su perfil de GitHub.</li>
+        </ul>
+      </li>
     </ul>
   `;
 
