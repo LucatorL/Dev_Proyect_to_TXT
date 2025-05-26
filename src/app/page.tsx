@@ -73,7 +73,7 @@ export default function JavaUnifierPage() {
       });
 
       setProcessedProjects(projects);
-      setModalInitialProjectName(getProjectBaseName(projects[0].name)); // Simplified for now as multi-project is default
+      setModalInitialProjectName(getProjectBaseName(projects[0].name));
       
       setIsModalOpen(true); 
 
@@ -112,7 +112,7 @@ export default function JavaUnifierPage() {
       <li>Selector de tema (claro/oscuro).</li>
       <li>Enlace para reportar problemas/sugerencias en GitHub.</li>
       <li>Estimación de tokens aproximada en la vista previa.</li>
-      <li>Visualización de la versión de la aplicación en la cabecera.</li>
+      <li>Visualización de la versión de la aplicación en la cabecera y changelog.</li>
     </ul>
   `;
 
@@ -121,7 +121,7 @@ export default function JavaUnifierPage() {
     <div className="min-h-screen flex flex-col bg-background text-foreground">
       <HeaderControls 
         previewEnabled={isPreviewEnabled}
-        onPreviewToggle={setIsPreviewEnabled}
+        onPreviewToggle={(checked) => setIsPreviewEnabled(!!checked)}
         appVersion={APP_VERSION}
         onVersionClick={handleVersionClick}
       />
@@ -179,7 +179,18 @@ export default function JavaUnifierPage() {
         </AlertDialog>
       )}
       <footer className="text-center p-4 border-t text-sm text-muted-foreground flex flex-col sm:flex-row justify-between items-center">
-        <span>Java Unifier - Adaptado de la aplicación original de Lucas.</span>
+        <span>
+          Java Unifier - Adaptado de la{' '}
+          <a
+            href="https://github.com/LucatorL/JavaSourceToTxt"
+            target="_blank"
+            rel="noopener noreferrer"
+            className="text-primary hover:underline"
+          >
+            aplicación original
+          </a>
+          {' '}de Lucas.
+        </span>
         <Button variant="link" asChild className="mt-2 sm:mt-0 text-muted-foreground hover:text-primary">
           <a href="https://github.com/LucatorL/JavaSourceToTxt/issues" target="_blank" rel="noopener noreferrer">
             <Github className="mr-2 h-4 w-4" />
