@@ -1,3 +1,4 @@
+
 // components/java-unifier/HeaderControls.tsx
 "use client"
 
@@ -5,11 +6,13 @@ import { ThemeToggle } from "./ThemeToggle"
 import { Checkbox } from "@/components/ui/checkbox"
 import { Label } from "@/components/ui/label"
 import { Button } from "@/components/ui/button"
-import { Info } from "lucide-react"
+import { Info, Combine } from "lucide-react"
 
 interface HeaderControlsProps {
   previewEnabled: boolean;
   onPreviewToggle: (enabled: boolean) => void;
+  multiProjectModeEnabled: boolean;
+  onMultiProjectModeToggle: (enabled: boolean) => void;
   appVersion?: string;
   onVersionClick?: () => void;
 }
@@ -17,6 +20,8 @@ interface HeaderControlsProps {
 export function HeaderControls({
   previewEnabled,
   onPreviewToggle,
+  multiProjectModeEnabled,
+  onMultiProjectModeToggle,
   appVersion,
   onVersionClick,
 }: HeaderControlsProps) {
@@ -27,10 +32,24 @@ export function HeaderControls({
           <Checkbox
             id="preview-enabled"
             checked={previewEnabled}
-            onCheckedChange={onPreviewToggle}
+            onCheckedChange={(checked) => {
+              if (typeof checked === 'boolean') onPreviewToggle(checked);
+            }}
           />
           <Label htmlFor="preview-enabled" className="text-sm font-medium">
             Activar Vista Previa
+          </Label>
+        </div>
+        <div className="flex items-center space-x-2">
+          <Checkbox
+            id="multi-project-mode"
+            checked={multiProjectModeEnabled}
+             onCheckedChange={(checked) => {
+              if (typeof checked === 'boolean') onMultiProjectModeToggle(checked);
+            }}
+          />
+          <Label htmlFor="multi-project-mode" className="text-sm font-medium">
+            Unificar Múltiples Proyectos
           </Label>
         </div>
       </div>

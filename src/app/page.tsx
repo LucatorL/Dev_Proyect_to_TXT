@@ -37,6 +37,7 @@ export default function JavaUnifierPage() {
   const [isRecentInfoModalOpen, setIsRecentInfoModalOpen] = useState(false);
   const [selectedRecentForInfoModal, setSelectedRecentForInfoModal] = useState<RecentEntry | null>(null);
   const [isPreviewEnabled, setIsPreviewEnabled] = useState(true);
+  const [isMultiProjectMode, setIsMultiProjectMode] = useState(true); 
   const [isChangelogModalOpen, setIsChangelogModalOpen] = useState(false);
 
   const { toast } = useToast();
@@ -118,6 +119,8 @@ export default function JavaUnifierPage() {
       <li>Añadida la foto de perfil de GitHub de Lucas junto a su nombre en el pie de página.</li>
       <li>El texto "aplicación original" en el pie de página ahora enlaza al repositorio de GitHub.</li>
       <li>La foto de perfil y el nombre "Lucas" en el pie de página ahora enlazan a su perfil de GitHub.</li>
+      <li>Rehabilitado el interruptor "Unificar Múltiples Proyectos" en la cabecera.</li>
+      <li>Añadida navegación por proyectos individuales en el modal de selección cuando "Unificar Múltiples Proyectos" está desactivado.</li>
     </ul>
   `;
 
@@ -127,6 +130,8 @@ export default function JavaUnifierPage() {
       <HeaderControls 
         previewEnabled={isPreviewEnabled}
         onPreviewToggle={(checked) => setIsPreviewEnabled(!!checked)}
+        multiProjectModeEnabled={isMultiProjectMode}
+        onMultiProjectModeToggle={(checked) => setIsMultiProjectMode(!!checked)}
         appVersion={APP_VERSION}
         onVersionClick={handleVersionClick}
       />
@@ -144,7 +149,7 @@ export default function JavaUnifierPage() {
           onClose={() => setIsModalOpen(false)}
           projectsToProcess={processedProjects}
           onConfirm={handleModalConfirm}
-          isMultiProjectView={true} 
+          isMultiProjectMode={isMultiProjectMode} 
           initialProjectName={modalInitialProjectName}
           showPreview={isPreviewEnabled}
         />
@@ -207,6 +212,7 @@ export default function JavaUnifierPage() {
               width={24} 
               height={24} 
               className="rounded-full mr-1.5 ml-0.5"
+              data-ai-hint="github profile"
             />
             Lucas
           </a>.

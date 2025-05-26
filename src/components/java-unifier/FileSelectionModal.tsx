@@ -21,7 +21,7 @@ import { Card, CardContent, CardHeader, CardTitle } from '@/components/ui/card';
 import { Separator } from '@/components/ui/separator';
 import { ProcessedFile, ProjectFile, PackageGroup, UnifiedData } from '@/types/java-unifier';
 import { unifyJavaFiles, downloadTextFile } from '@/lib/file-processor';
-import { Copy, Download, Eye, CheckSquare, Square, FileText, FileCode, Database, Settings2, Info } from 'lucide-react';
+import { Copy, Download, Eye, CheckSquare, Square, FileText, FileCode, Database, Settings2, Info, ChevronLeft, ChevronRight } from 'lucide-react';
 import { useToast } from '@/hooks/use-toast';
 import { Tooltip, TooltipContent, TooltipProvider, TooltipTrigger } from '@/components/ui/tooltip';
 
@@ -30,9 +30,9 @@ interface FileSelectionModalProps {
   onClose: () => void;
   projectsToProcess: ProjectFile[];
   onConfirm: (selectedFiles: ProcessedFile[], unifiedContent: string) => void;
-  isMultiProjectView: boolean;
+  isMultiProjectMode: boolean; // Renamed from isMultiProjectView
   initialProjectName: string;
-  showPreview: boolean; // Added from page.tsx
+  showPreview: boolean;
 }
 
 const getFileIcon = (fileType: string) => {
@@ -50,6 +50,9 @@ const getFileIcon = (fileType: string) => {
     case 'csv':
     case 'yaml':
     case 'yml':
+    case 'classpath':
+    case 'project':
+    case 'dat':
     default:
       return <FileText className="w-3.5 h-3.5 mr-1.5 text-gray-500 shrink-0" />;
   }
@@ -61,7 +64,7 @@ export function FileSelectionModal({
   onClose,
   projectsToProcess,
   onConfirm,
-  isMultiProjectView,
+  isMultiProjectMode,
   initialProjectName,
   showPreview,
 }: FileSelectionModalProps) {
@@ -71,13 +74,26 @@ export function FileSelectionModal({
   const { toast } = useToast();
   const [outputFileName, setOutputFileName] = useState(initialProjectName + "_unificado.txt");
   const [individualFilePreview, setIndividualFilePreview] = useState<{ name: string, content: string, fileType: string } | null>(null);
-
+  const [currentProjectIndex, setCurrentProjectIndex] = useState(0);
 
   useEffect(() => {
     setCurrentProjects(projectsToProcess);
-    setOutputFileName((isMultiProjectView ? "Proyectos_Unificados" : getProjectBaseName(projectsToProcess[0]?.name || "proyecto")) + "_unificado.txt");
-  }, [projectsToProcess, isMultiProjectView]);
+    setCurrentProjectIndex(0); // Reset index when projects change
+    // Update outputFileName based on the mode and current project
+    if (isMultiProjectMode || projectsToProcess.length === 0) {
+      setOutputFileName((isMultiProjectMode ? "Proyectos_Unificados" : getProjectBaseName(projectsToProcess[0]?.name || "proyecto")) + "_unificado.txt");
+    } else {
+      setOutputFileName(getProjectBaseName(projectsToProcess[currentProjectIndex]?.name || "proyecto") + "_unificado.txt");
+    }
+  }, [projectsToProcess, isMultiProjectMode]);
   
+  useEffect(() => {
+    // Update outputFileName when currentProjectIndex changes in single project mode
+    if (!isMultiProjectMode && projectsToProcess.length > 0) {
+      setOutputFileName(getProjectBaseName(projectsToProcess[currentProjectIndex]?.name || "proyecto") + "_unificado.txt");
+    }
+  }, [currentProjectIndex, isMultiProjectMode, projectsToProcess]);
+
   function getProjectBaseName(name: string): string {
       let baseName = name;
       if (baseName.toLowerCase().endsWith(".zip")) {
@@ -92,16 +108,16 @@ export function FileSelectionModal({
 
   useEffect(() => {
     if (showPreview) {
-      const content = unifyJavaFiles(currentProjects, isMultiProjectView);
+      const projectsForPreview = isMultiProjectMode ? currentProjects : (currentProjects[currentProjectIndex] ? [currentProjects[currentProjectIndex]] : []);
+      const content = unifyJavaFiles(projectsForPreview, isMultiProjectMode);
       setUnifiedPreview(content);
-      // Estimate tokens: 1 token ~ 4 chars. This is a very rough estimate.
       const tokens = Math.ceil(content.length / 4);
       setEstimatedTokens(tokens);
     } else {
       setUnifiedPreview("");
       setEstimatedTokens(0);
     }
-  }, [currentProjects, isMultiProjectView, showPreview]);
+  }, [currentProjects, isMultiProjectMode, currentProjectIndex, showPreview]);
 
   const handleFileSelectionChange = (projectId: string, fileId: string, selected: boolean) => {
     setCurrentProjects(prevProjects =>
@@ -118,38 +134,86 @@ export function FileSelectionModal({
     );
   };
 
-  const handleSelectAll = (selectAll: boolean) => {
-    setCurrentProjects(prevProjects =>
-      prevProjects.map(proj => ({
-        ...proj,
-        files: proj.files.map(file => ({ ...file, selected: selectAll })),
-      }))
-    );
+  const handleSelectAllCurrentProject = (selectAll: boolean) => {
+    if (isMultiProjectMode) {
+      setCurrentProjects(prevProjects =>
+        prevProjects.map(proj => ({
+          ...proj,
+          files: proj.files.map(file => ({ ...file, selected: selectAll })),
+        }))
+      );
+    } else if (currentProjects[currentProjectIndex]) {
+      const targetProjectId = currentProjects[currentProjectIndex].id;
+      setCurrentProjects(prevProjects =>
+        prevProjects.map(proj =>
+          proj.id === targetProjectId
+            ? {
+                ...proj,
+                files: proj.files.map(file => ({ ...file, selected: selectAll })),
+              }
+            : proj
+        )
+      );
+    }
   };
   
-  const handleSelectOnlyJava = (selectJava: boolean) => {
-    setCurrentProjects(prevProjects =>
-      prevProjects.map(proj => ({
-        ...proj,
-        files: proj.files.map(file => ({
-          ...file,
-          selected: file.fileType === 'java' ? selectJava : (selectJava ? false : file.selected)
-        })),
-      }))
-    );
+  const handleSelectOnlyJavaCurrentProject = (selectJava: boolean) => {
+     if (isMultiProjectMode) {
+        setCurrentProjects(prevProjects =>
+          prevProjects.map(proj => ({
+            ...proj,
+            files: proj.files.map(file => ({
+              ...file,
+              selected: file.fileType === 'java' ? selectJava : (selectJava ? false : file.selected)
+            })),
+          }))
+        );
+     } else if (currentProjects[currentProjectIndex]) {
+        const targetProjectId = currentProjects[currentProjectIndex].id;
+        setCurrentProjects(prevProjects =>
+            prevProjects.map(proj =>
+            proj.id === targetProjectId
+                ? {
+                    ...proj,
+                    files: proj.files.map(file => ({
+                    ...file,
+                    selected: file.fileType === 'java' ? selectJava : (selectJava ? false : file.selected)
+                    })),
+                }
+                : proj
+            )
+        );
+     }
   };
 
 
   const handleConfirm = () => {
-    const allSelectedFiles: ProcessedFile[] = currentProjects.flatMap(p => p.files.filter(f => f.selected));
+    let allSelectedFiles: ProcessedFile[];
+    let finalUnifiedContent: string;
+    let finalOutputFileName: string;
+
+    if (isMultiProjectMode) {
+      allSelectedFiles = currentProjects.flatMap(p => p.files.filter(f => f.selected));
+      finalUnifiedContent = unifyJavaFiles(currentProjects, true);
+      finalOutputFileName = (projectsToProcess.length > 1 || !projectsToProcess[0] ? "Proyectos_Unificados" : getProjectBaseName(projectsToProcess[0].name)) + "_unificado.txt";
+    } else if (currentProjects[currentProjectIndex]) {
+      const currentProjectForConfirm = currentProjects[currentProjectIndex];
+      allSelectedFiles = currentProjectForConfirm.files.filter(f => f.selected);
+      finalUnifiedContent = unifyJavaFiles([currentProjectForConfirm], false);
+      finalOutputFileName = getProjectBaseName(currentProjectForConfirm.name) + "_unificado.txt";
+    } else {
+      toast({ title: "Error", description: "No hay proyecto seleccionado para unificar.", variant: "destructive" });
+      return;
+    }
+    
     if (allSelectedFiles.length === 0) {
         toast({ title: "Sin selección", description: "Por favor, selecciona al menos un archivo.", variant: "destructive" });
         return;
     }
-    const finalUnifiedContent = unifyJavaFiles(currentProjects, isMultiProjectView);
-    downloadTextFile(outputFileName, finalUnifiedContent);
+    
+    downloadTextFile(finalOutputFileName, finalUnifiedContent);
     onConfirm(allSelectedFiles, finalUnifiedContent);
-    toast({ title: "Éxito", description: `Archivo ${outputFileName} descargado.` });
+    toast({ title: "Éxito", description: `Archivo ${finalOutputFileName} descargado.` });
     onClose();
   };
 
@@ -163,8 +227,15 @@ export function FileSelectionModal({
       .catch(() => toast({ title: "Error", description: "No se pudo copiar al portapapeles.", variant: "destructive" }));
   };
 
+  const displayedProjectsForList = useMemo(() => {
+    if (isMultiProjectMode || !currentProjects[currentProjectIndex]) {
+      return currentProjects;
+    }
+    return [currentProjects[currentProjectIndex]];
+  }, [currentProjects, isMultiProjectMode, currentProjectIndex]);
+
   const organizedData: UnifiedData = useMemo(() => {
-    return currentProjects.map(project => {
+    return displayedProjectsForList.map(project => {
       const packageMap = new Map<string, ProcessedFile[]>();
       project.files.forEach(file => {
         const list = packageMap.get(file.packageName) || [];
@@ -176,7 +247,7 @@ export function FileSelectionModal({
         .sort(([pkgA], [pkgB]) => {
             if (pkgA === "(Default Package)") return -1;
             if (pkgB === "(Default Package)") return 1;
-            if (pkgA === "(Other Project Files)" && pkgB !== "(Default Package)") return -1;
+            if (pkgA === "(Other Project Files)" && pkgB !== "(Default Package)") return -1; // Keep this logic for consistency
             if (pkgB === "(Other Project Files)" && pkgA !== "(Default Package)") return 1;
             return pkgA.localeCompare(pkgB);
         })
@@ -187,17 +258,18 @@ export function FileSelectionModal({
       
       return { projectName: project.name, packages };
     });
-  }, [currentProjects]);
+  }, [displayedProjectsForList]);
 
 
   if (!isOpen) return null;
+  const currentSingleProjectName = !isMultiProjectMode && currentProjects[currentProjectIndex] ? currentProjects[currentProjectIndex].name : (projectsToProcess[0]?.name || 'Proyecto');
 
   return (
     <Dialog open={isOpen} onOpenChange={onClose}>
       <DialogContent className="max-w-4xl h-[90vh] flex flex-col p-0">
         <DialogHeader className="p-6 pb-0">
           <DialogTitle>
-            {isMultiProjectView ? "Unificar Múltiples Proyectos" : `Seleccionar Archivos de: ${projectsToProcess[0]?.name || 'Proyecto'}`}
+            {isMultiProjectMode ? "Unificar Múltiples Proyectos" : `Seleccionar Archivos de: ${currentSingleProjectName}`}
           </DialogTitle>
           <DialogDescription>
             Selecciona los archivos que deseas incluir en el archivo unificado. Los archivos Java están seleccionados por defecto.
@@ -210,21 +282,48 @@ export function FileSelectionModal({
             <div className="flex items-center justify-between mb-2 p-1 rounded-md bg-secondary flex-wrap gap-1">
               <Label className="font-semibold px-2">Archivos del Proyecto</Label>
               <div className="space-x-1">
-                <Button variant="ghost" size="sm" onClick={() => handleSelectOnlyJava(true)} title="Seleccionar Solo Java">
+                <Button variant="ghost" size="sm" onClick={() => handleSelectOnlyJavaCurrentProject(true)} title="Seleccionar Solo Java">
                   <FileCode className="w-4 h-4 mr-1" /> Solo Java
                 </Button>
-                 <Button variant="ghost" size="sm" onClick={() => handleSelectAll(true)} title="Seleccionar Todo">
+                 <Button variant="ghost" size="sm" onClick={() => handleSelectAllCurrentProject(true)} title="Seleccionar Todo">
                   <CheckSquare className="w-4 h-4" /> Todo
                 </Button>
-                <Button variant="ghost" size="sm" onClick={() => handleSelectAll(false)} title="Deseleccionar Todo">
+                <Button variant="ghost" size="sm" onClick={() => handleSelectAllCurrentProject(false)} title="Deseleccionar Todo">
                   <Square className="w-4 h-4" /> Nada
                 </Button>
               </div>
             </div>
+            
+            {!isMultiProjectMode && projectsToProcess.length > 1 && (
+              <div className="flex justify-between items-center mb-2 px-1">
+                <Button
+                  variant="outline"
+                  size="icon"
+                  onClick={() => setCurrentProjectIndex(prev => Math.max(0, prev - 1))}
+                  disabled={currentProjectIndex === 0}
+                  className="h-8 w-8"
+                >
+                  <ChevronLeft className="h-4 w-4" />
+                </Button>
+                <span className="font-medium text-sm truncate mx-2 flex-1 text-center" title={currentProjects[currentProjectIndex]?.name}>
+                  {currentProjects[currentProjectIndex]?.name}
+                </span>
+                <Button
+                  variant="outline"
+                  size="icon"
+                  onClick={() => setCurrentProjectIndex(prev => Math.min(projectsToProcess.length - 1, prev + 1))}
+                  disabled={currentProjectIndex === projectsToProcess.length - 1}
+                  className="h-8 w-8"
+                >
+                  <ChevronRight className="h-4 w-4" />
+                </Button>
+              </div>
+            )}
+
             <ScrollArea className="flex-grow border rounded-md p-1">
               {organizedData.map(projectGroup => (
                 <div key={projectGroup.projectName} className="mb-3">
-                  {isMultiProjectView && (
+                  {(isMultiProjectMode && projectsToProcess.length > 1) && (
                     <h4 className="text-sm font-semibold p-2 bg-muted rounded-t-md sticky top-0 z-10">{projectGroup.projectName}</h4>
                   )}
                   {projectGroup.packages.map(pkgGroup => (
@@ -253,6 +352,9 @@ export function FileSelectionModal({
                       </ul>
                     </div>
                   ))}
+                   {organizedData.length === 0 && (
+                     <p className="text-sm text-muted-foreground p-4 text-center">No hay archivos en este proyecto.</p>
+                   )}
                 </div>
               ))}
             </ScrollArea>
