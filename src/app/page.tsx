@@ -43,7 +43,7 @@ export default function JavaUnifierPage() {
   const { toast } = useToast();
 
   useEffect(() => {
-    // Closes modal if it's open and the project list becomes empty (e.g., after processing the last project)
+    // Closes modal if it's open and the project list becomes empty (e.g., after processing the last project or removing the last one)
     if (isModalOpen && processedProjects.length === 0) {
       setIsModalOpen(false);
     }
@@ -101,26 +101,38 @@ export default function JavaUnifierPage() {
   
   const handleModalClose = useCallback(() => {
     // This function is called when the modal is dismissed (X, Esc, Cancel)
-    if (!isMultiProjectMode && processedProjects.length > 1 && currentProjectIndexInModal < processedProjects.length) {
-      // Single-project mode, multiple projects in batch: remove only the viewed project from the batch.
-      const projectToRemoveId = processedProjects[currentProjectIndexInModal]?.id;
-      if (projectToRemoveId) {
-        setProcessedProjects(prev => prev.filter(p => p.id !== projectToRemoveId));
+    const projectToRemoveId = processedProjects[currentProjectIndexInModal]?.id;
+
+    if (!isMultiProjectMode && processedProjects.length > 1 && projectToRemoveId) {
+      // Single-project mode, multiple projects in batch, and a valid project was being viewed.
+      // Remove only the viewed project from the batch. Modal stays open if more projects remain.
+      const updatedProjects = processedProjects.filter(p => p.id !== projectToRemoveId);
+      setProcessedProjects(updatedProjects);
+      setCurrentProjectIndexInModal(prevIndex => Math.max(0, Math.min(prevIndex, updatedProjects.length - 1)));
+
+      if (updatedProjects.length === 0) {
+        setIsModalOpen(false); // If removing this project made the list empty, close modal.
       }
+      // Otherwise, modal STAYS OPEN, and will re-render with the updatedProjects list.
     } else {
-      // Multi-project mode, or single-project mode with 0/1 project: clear the entire batch.
+      // Multi-project mode, OR single-project mode with 0/1 project in batch (or projectToRemoveId was undefined):
+      // Clear the entire batch and close the modal.
       setProcessedProjects([]);
+      setIsModalOpen(false);
+      setCurrentProjectIndexInModal(0); // Reset for next time
     }
-    setIsModalOpen(false);
-    setCurrentProjectIndexInModal(0); // Reset for next time
-  }, [isMultiProjectMode, processedProjects, currentProjectIndexInModal, setIsModalOpen, setProcessedProjects]);
+  }, [isMultiProjectMode, processedProjects, currentProjectIndexInModal, setProcessedProjects, setIsModalOpen, setCurrentProjectIndexInModal]);
 
 
   const handleSingleProjectProcessed = (projectId: string, downloadData: { fileName: string; content: string }) => {
     downloadTextFile(downloadData.fileName, downloadData.content);
-    setProcessedProjects(prev => prev.filter(p => p.id !== projectId)); 
-    setCurrentProjectIndexInModal(idx => Math.max(0, Math.min(idx, processedProjects.length - 2))); // Adjust index if current is removed
+    const updatedProjects = processedProjects.filter(p => p.id !== projectId);
+    setProcessedProjects(updatedProjects); 
+    setCurrentProjectIndexInModal(idx => Math.max(0, Math.min(idx, updatedProjects.length - 1)));
     toast({ title: "Éxito", description: `Proyecto ${getProjectBaseName(downloadData.fileName.replace('_unificado.txt', ''))} procesado y descargado.` });
+    if (updatedProjects.length === 0) {
+        setIsModalOpen(false);
+    }
   };
 
   const handleMultiProjectProcessed = (projectIdsToRemove: string[], downloadData: { fileName: string; content: string }) => {
@@ -172,9 +184,15 @@ export default function JavaUnifierPage() {
       <li>Actualización de la versión a 0.1.3.</li>
       <li>Ajustado el comportamiento al cerrar el modal de selección de archivos (con "X", Esc o "Cancelar"):
         <ul class="list-disc pl-5">
-          <li>En modo "Unificar Múltiples Proyectos" o si solo hay un proyecto en el lote: se limpia la lista completa de proyectos cargados.</li>
-          <li>En modo de proyecto individual (con la opción de múltiples desactivada) y si hay varios proyectos en el lote: solo se eliminará del lote el proyecto que se estaba visualizando en el modal al momento de cerrarlo. El modal se cerrará.</li>
-          <li>Al arrastrar nuevos archivos, siempre se iniciará con un lote nuevo, sin mezclar con proyectos de un cierre anterior.</li>
+          <li>En modo "Unificar Múltiples Proyectos" (opción activada) O si solo había un proyecto (o ninguno) en el lote actual: la lista `processedProjects` se vaciará y el modal se cerrará.</li>
+          <li>En modo de proyecto individual ("Unificar Múltiples Proyectos" desactivado) Y había más de un proyecto en el lote:
+            <ul class="list-disc pl-5">
+                 <li>El proyecto que se estaba visualizando en el modal al momento de cerrarlo se eliminará del lote.</li>
+                 <li>El modal **permanecerá abierto** si quedan otros proyectos en el lote.</li>
+                 <li>Si al eliminar el proyecto el lote queda vacío, el modal se cerrará.</li>
+            </ul>
+          </li>
+          <li>Al arrastrar nuevos archivos, siempre se iniciará con un lote nuevo, reemplazando cualquier proyecto anterior.</li>
         </ul>
       </li>
       <li>Actualización de la versión a 0.1.4.</li>
