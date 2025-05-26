@@ -116,6 +116,8 @@ export default function JavaUnifierPage() {
       <li>Visualización de la versión de la aplicación en la cabecera y changelog.</li>
       <li>El asistente de IA ahora actualizará este changelog con cada cambio aplicado.</li>
       <li>Añadida la foto de perfil de GitHub de Lucas junto a su nombre en el pie de página.</li>
+      <li>El texto "aplicación original" en el pie de página ahora enlaza al repositorio de GitHub.</li>
+      <li>La foto de perfil y el nombre "Lucas" en el pie de página ahora enlazan a su perfil de GitHub.</li>
     </ul>
   `;
 
@@ -193,14 +195,21 @@ export default function JavaUnifierPage() {
             aplicación original
           </a>
           &nbsp;de&nbsp;
-          <Image 
-            src="https://github.com/LucatorL.png" 
-            alt="Foto de perfil de Lucas" 
-            width={24} 
-            height={24} 
-            className="rounded-full mr-1.5 ml-0.5"
-          />
-          Lucas.
+          <a 
+            href="https://github.com/LucatorL" 
+            target="_blank" 
+            rel="noopener noreferrer" 
+            className="flex items-center text-primary hover:underline"
+          >
+            <Image 
+              src="https://github.com/LucatorL.png" 
+              alt="Foto de perfil de Lucas" 
+              width={24} 
+              height={24} 
+              className="rounded-full mr-1.5 ml-0.5"
+            />
+            Lucas
+          </a>.
         </span>
         <Button variant="link" asChild className="mt-2 sm:mt-0 text-muted-foreground hover:text-primary">
           <a href="https://github.com/LucatorL/JavaSourceToTxt/issues" target="_blank" rel="noopener noreferrer">
