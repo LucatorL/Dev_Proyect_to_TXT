@@ -32,7 +32,7 @@ export function HeaderControls({
       </div>
       <div className="flex items-center space-x-3">
         {appVersion && (
-          <span className="text-xs text-muted-foreground">
+          <span className="text-sm font-medium px-2.5 py-1 rounded-md border border-border bg-secondary text-secondary-foreground select-none">
             v{appVersion}
           </span>
         )}
