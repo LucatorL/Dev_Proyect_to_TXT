@@ -9,7 +9,7 @@ import { FileDropzone } from '@/components/java-unifier/FileDropzone';
 import { RecentFilesList } from '@/components/java-unifier/RecentFilesList';
 import { FileSelectionModal } from '@/components/java-unifier/FileSelectionModal';
 import useLocalStorage from '@/hooks/useLocalStorage';
-import type { ProjectFile, RecentEntry, ProcessedFile } from '@/types/java-unifier';
+import type { ProjectFile, RecentEntry } from '@/types/java-unifier';
 import { processDroppedItems, unifyJavaFiles, downloadTextFile, getProjectBaseName } from '@/lib/file-processor';
 import { useToast } from "@/hooks/use-toast";
 import {
@@ -25,7 +25,7 @@ import { Button } from '@/components/ui/button';
 import { Github } from 'lucide-react';
 
 const MAX_RECENTS = 3;
-const APP_VERSION = "0.1.2"; 
+const APP_VERSION = "0.1.3"; 
 
 export default function JavaUnifierPage() {
   const [recents, setRecents] = useLocalStorage<RecentEntry[]>('java-unifier-recents', []);
@@ -42,7 +42,6 @@ export default function JavaUnifierPage() {
   const { toast } = useToast();
 
   useEffect(() => {
-    // If modal is open and there are no more projects to process, close the modal
     if (isModalOpen && processedProjects.length === 0) {
       setIsModalOpen(false);
     }
@@ -82,7 +81,7 @@ export default function JavaUnifierPage() {
 
       setProcessedProjects(prev => {
         const newProjectIds = new Set(projects.map(p => p.id));
-        const existingProjects = prev.filter(ep => !newProjectIds.has(ep.id));
+        const existingProjects = prev.filter(ep => !newProjectIds.has(ep.id)); // This line was changed to filter out by newProjectIds
         return [...existingProjects, ...projects];
       });
       
@@ -96,6 +95,13 @@ export default function JavaUnifierPage() {
         variant: "destructive",
       });
     }
+  };
+  
+  const handleModalClose = () => {
+    setIsModalOpen(false);
+    // Critical fix: Clear projects when modal is closed without a save operation
+    // This prevents old data from persisting into the next file drop.
+    setProcessedProjects([]); 
   };
 
   const handleSingleProjectProcessed = (projectId: string, downloadData: { fileName: string; content: string }) => {
@@ -148,8 +154,10 @@ export default function JavaUnifierPage() {
       <li>Corregido error de visualización de conteo de tokens negativo.</li>
       <li>Corregido error de posicionamiento del modal de selección de archivos (estaba cortado).</li>
       <li>Actualización de la versión a 0.1.2.</li>
-      <li>Corregido un error grave donde proyectos previamente unificados y cerrados podían ser incluidos incorrectamente en unificaciones posteriores al forzar el re-montaje del modal de selección.</li>
+      <li>Corregido un error grave donde proyectos previamente unificados y cerrados podían ser incluidos incorrectamente en unificaciones posteriores. Esto se solucionó asegurando que el estado interno del modal de selección se reinicie completamente cuando cambia la lista de proyectos (usando una 'key' dinámica en el componente).</li>
       <li>Mejorado el manejo de la lista de proyectos en el modal de selección para reflejar con mayor precisión los cambios.</li>
+      <li>Actualización de la versión a 0.1.3.</li>
+      <li>Corregido error crítico: los proyectos de una sesión anterior del modal (cerrada con "X" o "Cancelar") ya no se incluyen incorrectamente en nuevas unificaciones. La lista de proyectos activos ahora se limpia correctamente al cerrar el modal sin guardar.</li>
     </ul>
   `;
 
@@ -176,7 +184,7 @@ export default function JavaUnifierPage() {
         <FileSelectionModal
           key={processedProjects.map(p => p.id).join('-') || 'modal-empty'}
           isOpen={isModalOpen}
-          onClose={() => setIsModalOpen(false)}
+          onClose={handleModalClose}
           projectsToProcess={processedProjects}
           onSingleProjectProcessed={handleSingleProjectProcessed}
           onMultiProjectProcessed={handleMultiProjectProcessed}
