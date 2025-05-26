@@ -4,7 +4,7 @@ import type { ProcessedFile, ProjectFile } from '@/types/java-unifier';
 const MAX_FILE_SIZE = 1024 * 1024 * 5; // 5MB limit per file for client-side processing
 const MAX_TOTAL_FILES = 200; // Max number of files to process to prevent browser freeze
 
-const SUPPORTED_EXTENSIONS = ['java', 'xml', 'txt', 'properties', 'md', 'sql', 'csv', 'yaml', 'yml', 'pom'];
+const SUPPORTED_EXTENSIONS = ['java', 'xml', 'txt', 'properties', 'md', 'sql', 'csv', 'yaml', 'yml', 'pom', 'classpath', 'project', 'dat'];
 const JAVA_EXTENSION = 'java';
 const OTHER_FILES_PACKAGE_NAME = "(Other Project Files)";
 
@@ -21,6 +21,12 @@ export function getProjectBaseName(name: string): string {
 }
 
 function getFileExtension(fileName: string): string {
+  if (fileName.startsWith('.')) { // Handle hidden files like .classpath or .project
+    const potentialExtension = fileName.substring(1);
+    if (SUPPORTED_EXTENSIONS.includes(potentialExtension)) {
+      return potentialExtension;
+    }
+  }
   return fileName.split('.').pop()?.toLowerCase() || 'unknown';
 }
 
@@ -163,7 +169,7 @@ function readFileContent(file: File): Promise<string> {
     const reader = new FileReader();
     reader.onload = (event) => resolve(event.target?.result as string);
     reader.onerror = (error) => reject(error);
-    reader.readAsText(file, 'UTF-8');
+    reader.readAsText(file, 'UTF-8'); // Attempt to read as UTF-8, might be problematic for binary .dat
   });
 }
 
@@ -264,3 +270,4 @@ export function downloadTextFile(filename: string, text: string) {
   element.click();
   document.body.removeChild(element);
 }
+

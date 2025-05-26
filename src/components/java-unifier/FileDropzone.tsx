@@ -12,10 +12,16 @@ interface FileDropzoneProps {
 }
 
 // From file-processor.ts, duplicated for client-side check without direct import if not desired
-const SUPPORTED_EXTENSIONS_DROPZONE = ['java', 'xml', 'txt', 'properties', 'md', 'sql', 'csv', 'yaml', 'yml', 'pom'];
+const SUPPORTED_EXTENSIONS_DROPZONE = ['java', 'xml', 'txt', 'properties', 'md', 'sql', 'csv', 'yaml', 'yml', 'pom', 'classpath', 'project', 'dat'];
 
 function isSupportedFileType(fileName: string): boolean {
-  const extension = fileName.split('.').pop()?.toLowerCase();
+  let extension = fileName.split('.').pop()?.toLowerCase();
+  if (fileName.startsWith('.') && extension) { // for hidden files like .classpath
+    const potentialExt = fileName.substring(1);
+    if (SUPPORTED_EXTENSIONS_DROPZONE.includes(potentialExt)) {
+      extension = potentialExt;
+    }
+  }
   return extension ? SUPPORTED_EXTENSIONS_DROPZONE.includes(extension) : false;
 }
 
@@ -163,7 +169,7 @@ export function FileDropzone({ onFilesProcessed }: FileDropzoneProps) {
           Arrastra aquí carpetas o archivos soportados
         </p>
         <p className="text-sm text-muted-foreground">
-          (.java, .xml, .txt, .sql, pom.xml, etc. Archivos ZIP/RAR deben extraerse primero)
+          (.java, .xml, .txt, .sql, .dat, pom.xml, etc. Archivos ZIP/RAR deben extraerse primero)
         </p>
         <input
           type="file"
@@ -180,3 +186,4 @@ export function FileDropzone({ onFilesProcessed }: FileDropzoneProps) {
     </div>
   );
 }
+
