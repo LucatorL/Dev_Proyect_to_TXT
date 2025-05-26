@@ -3,6 +3,7 @@
 "use client"
 
 import React, { useState, useEffect, useCallback } from 'react';
+import Image from 'next/image';
 import { HeaderControls } from '@/components/java-unifier/HeaderControls';
 import { FileDropzone } from '@/components/java-unifier/FileDropzone';
 import { RecentFilesList } from '@/components/java-unifier/RecentFilesList';
@@ -114,6 +115,7 @@ export default function JavaUnifierPage() {
       <li>Estimación de tokens aproximada en la vista previa.</li>
       <li>Visualización de la versión de la aplicación en la cabecera y changelog.</li>
       <li>El asistente de IA ahora actualizará este changelog con cada cambio aplicado.</li>
+      <li>Añadida la foto de perfil de GitHub de Lucas junto a su nombre en el pie de página.</li>
     </ul>
   `;
 
@@ -149,7 +151,7 @@ export default function JavaUnifierPage() {
          <AlertDialog open={isRecentInfoModalOpen} onOpenChange={setIsRecentInfoModalOpen}>
           <AlertDialogContent>
             <AlertDialogHeader>
-              <AlertDialogTitle>Información sobre: "{selectedRecentForInfoModal.name}"</AlertDialogTitle>
+              <AlertDialogTitle>Información sobre el Historial: "{selectedRecentForInfoModal.name}"</AlertDialogTitle>
               <AlertDialogDescription>
                 Este elemento aparece en el "Historial de Procesados" como un recordatorio de los proyectos que has procesado.
                 <br /><br />
@@ -180,8 +182,8 @@ export default function JavaUnifierPage() {
         </AlertDialog>
       )}
       <footer className="text-center p-4 border-t text-sm text-muted-foreground flex flex-col sm:flex-row justify-between items-center">
-        <span>
-          Java Unifier - Adaptado de la{' '}
+        <span className="flex items-center">
+          Java Unifier - Adaptado de la&nbsp;
           <a
             href="https://github.com/LucatorL/JavaSourceToTxt"
             target="_blank"
@@ -190,7 +192,15 @@ export default function JavaUnifierPage() {
           >
             aplicación original
           </a>
-          {' '}de Lucas.
+          &nbsp;de&nbsp;
+          <Image 
+            src="https://github.com/LucatorL.png" 
+            alt="Foto de perfil de Lucas" 
+            width={24} 
+            height={24} 
+            className="rounded-full mr-1.5 ml-0.5"
+          />
+          Lucas.
         </span>
         <Button variant="link" asChild className="mt-2 sm:mt-0 text-muted-foreground hover:text-primary">
           <a href="https://github.com/LucatorL/JavaSourceToTxt/issues" target="_blank" rel="noopener noreferrer">
