@@ -81,7 +81,6 @@ export default function JavaUnifierPage() {
       });
 
       setProcessedProjects(prev => {
-        // Avoid duplicating projects if they are dropped again, or handle updates if necessary
         const newProjectIds = new Set(projects.map(p => p.id));
         const existingProjects = prev.filter(ep => !newProjectIds.has(ep.id));
         return [...existingProjects, ...projects];
@@ -101,20 +100,20 @@ export default function JavaUnifierPage() {
 
   const handleSingleProjectProcessed = (projectId: string, downloadData: { fileName: string; content: string }) => {
     downloadTextFile(downloadData.fileName, downloadData.content);
-    setProcessedProjects(prev => prev.filter(p => p.id !== projectId));
+    setProcessedProjects(prev => prev.filter(p => p.id !== projectId)); // Remove only the processed project
     toast({ title: "Éxito", description: `Proyecto ${getProjectBaseName(downloadData.fileName.replace('_unificado.txt', ''))} procesado y descargado.` });
-    // Modal stays open if more projects, handled by useEffect
+    // Modal stays open if more projects, handled by useEffect based on processedProjects.length
   };
 
   const handleMultiProjectProcessed = (projectIdsToRemove: string[], downloadData: { fileName: string; content: string }) => {
     downloadTextFile(downloadData.fileName, downloadData.content);
     if (projectIdsToRemove.length > 0) {
       setProcessedProjects(prev => prev.filter(p => !projectIdsToRemove.includes(p.id)));
-    } else { // If no specific projects to remove (e.g. user selected nothing but clicked download)
-      setProcessedProjects([]); // Clear all, or just close modal
+    } else { 
+      setProcessedProjects([]); 
     }
     toast({ title: "Éxito", description: `Archivo ${downloadData.fileName} descargado.` });
-    setIsModalOpen(false); // Close modal after multi-project download
+    // Modal closing is handled by useEffect based on processedProjects.length
   };
 
 
@@ -148,6 +147,8 @@ export default function JavaUnifierPage() {
       <li>Añadida navegación por proyectos individuales en el modal de selección cuando "Unificar Múltiples Proyectos" está desactivado, con flechas laterales.</li>
       <li>En modo de proyecto individual, al descargar, solo ese proyecto se elimina de la lista y el modal permanece abierto si hay más proyectos.</li>
       <li>Actualización de la versión a 0.1.1.</li>
+      <li>Corregido error de visualización de conteo de tokens negativo.</li>
+      <li>Corregido error de posicionamiento del modal de selección de archivos (estaba cortado).</li>
     </ul>
   `;
 

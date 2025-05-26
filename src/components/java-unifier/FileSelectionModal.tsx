@@ -80,7 +80,7 @@ export function FileSelectionModal({
     setCurrentDisplayProjects(projectsToProcess);
     if (projectsToProcess.length > 0) {
         setCurrentProjectIndex(idx => Math.min(idx, projectsToProcess.length - 1));
-    } else if (isOpen) { // If modal is open and projects become empty, parent should close it.
+    } else if (isOpen) { 
         // Parent component (JavaUnifierPage) handles closing the modal if projectsToProcess becomes empty.
     }
   }, [projectsToProcess, isOpen]);
@@ -103,7 +103,7 @@ export function FileSelectionModal({
       const projectsForPreview = isMultiProjectMode ? currentDisplayProjects : (currentDisplayProjects[currentProjectIndex] ? [currentDisplayProjects[currentProjectIndex]] : []);
       const selectedProjectsForPreview = projectsForPreview.map(p => ({
         ...p,
-        files: p.files.filter(f => f.selected) // Only include selected files in preview
+        files: p.files.filter(f => f.selected) 
       })).filter(p => p.files.length > 0);
 
       if (selectedProjectsForPreview.length === 0) {
@@ -114,7 +114,7 @@ export function FileSelectionModal({
 
       const content = unifyJavaFiles(selectedProjectsForPreview, isMultiProjectMode);
       setUnifiedPreview(content);
-      const tokens = Math.ceil(content.length / 4);
+      const tokens = Math.max(0, Math.ceil(content.length / 4));
       setEstimatedTokens(tokens);
     } else {
       setUnifiedPreview("");
@@ -241,7 +241,7 @@ export function FileSelectionModal({
         .sort(([pkgA], [pkgB]) => {
             if (pkgA === "(Default Package)") return -1;
             if (pkgB === "(Default Package)") return 1;
-            if (pkgA === "(Other Project Files)" && pkgB !== "(Default Package)") return 1; // Other files last
+            if (pkgA === "(Other Project Files)" && pkgB !== "(Default Package)") return 1; 
             if (pkgB === "(Other Project Files)" && pkgA !== "(Default Package)") return -1;
             return pkgA.localeCompare(pkgB);
         })
@@ -255,12 +255,12 @@ export function FileSelectionModal({
   }, [projectsForListDisplay]);
 
 
-  if (!isOpen) return null;
+  if (!isOpen || projectsToProcess.length === 0) return null; // Also ensure not to render if no projects
   const currentSingleProjectNameForTitle = !isMultiProjectMode && currentDisplayProjects[currentProjectIndex] ? currentDisplayProjects[currentProjectIndex].name : (projectsToProcess[0]?.name || 'Proyecto');
 
   return (
     <Dialog open={isOpen} onOpenChange={onClose}>
-      <DialogContent className="max-w-4xl h-[90vh] flex flex-col p-0 relative">
+      <DialogContent className="max-w-4xl h-[90vh] flex flex-col p-0"> {/* Removed 'relative' */}
         {/* Navigation Arrows for Single Project Mode */}
         {!isMultiProjectMode && projectsToProcess.length > 1 && (
           <>
@@ -269,7 +269,7 @@ export function FileSelectionModal({
               size="icon"
               onClick={() => setCurrentProjectIndex(prev => Math.max(0, prev - 1))}
               disabled={currentProjectIndex === 0}
-              className="absolute left-2 top-1/2 -translate-y-1/2 z-20 h-10 w-10 rounded-full shadow-md"
+              className="absolute left-2 top-1/2 -translate-y-1/2 z-20 h-10 w-10 rounded-full shadow-md bg-background/80 hover:bg-background"
               title="Proyecto Anterior"
             >
               <ChevronLeft className="h-5 w-5" />
@@ -279,7 +279,7 @@ export function FileSelectionModal({
               size="icon"
               onClick={() => setCurrentProjectIndex(prev => Math.min(projectsToProcess.length - 1, prev + 1))}
               disabled={currentProjectIndex === projectsToProcess.length - 1}
-              className="absolute right-2 top-1/2 -translate-y-1/2 z-20 h-10 w-10 rounded-full shadow-md"
+              className="absolute right-2 top-1/2 -translate-y-1/2 z-20 h-10 w-10 rounded-full shadow-md bg-background/80 hover:bg-background"
               title="Siguiente Proyecto"
             >
               <ChevronRight className="h-5 w-5" />
