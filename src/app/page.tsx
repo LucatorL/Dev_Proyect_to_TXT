@@ -24,7 +24,7 @@ import { Button } from '@/components/ui/button';
 import { Github } from 'lucide-react';
 
 const MAX_RECENTS = 3;
-const APP_VERSION = "0.1.0"; // Version from package.json
+const APP_VERSION = "0.1.0"; 
 
 export default function JavaUnifierPage() {
   const [recents, setRecents] = useLocalStorage<RecentEntry[]>('java-unifier-recents', []);
@@ -36,6 +36,7 @@ export default function JavaUnifierPage() {
   const [isRecentInfoModalOpen, setIsRecentInfoModalOpen] = useState(false);
   const [selectedRecentForInfoModal, setSelectedRecentForInfoModal] = useState<RecentEntry | null>(null);
   const [isPreviewEnabled, setIsPreviewEnabled] = useState(true);
+  const [isChangelogModalOpen, setIsChangelogModalOpen] = useState(false);
 
   const { toast } = useToast();
 
@@ -72,7 +73,7 @@ export default function JavaUnifierPage() {
       });
 
       setProcessedProjects(projects);
-      setModalInitialProjectName(projects.length > 1 ? "Proyectos_Unificados" : getProjectBaseName(projects[0].name));
+      setModalInitialProjectName(getProjectBaseName(projects[0].name)); // Simplified for now as multi-project is default
       
       setIsModalOpen(true); 
 
@@ -95,12 +96,34 @@ export default function JavaUnifierPage() {
     setIsRecentInfoModalOpen(true);
   };
 
+  const handleVersionClick = () => {
+    setIsChangelogModalOpen(true);
+  };
+
+  const changelogContentForV010 = `
+    <ul class="list-disc pl-5 space-y-1 text-sm">
+      <li>Versión inicial de Java Unifier.</li>
+      <li>Funcionalidad de arrastrar y soltar para carpetas y archivos soportados.</li>
+      <li>Soporte para tipos de archivo: .java, .xml, .pom, .txt, .properties, .md, .sql, .csv, .yaml, .yml, .classpath, .project, .dat.</li>
+      <li>Modal de selección de archivos con vista previa unificada.</li>
+      <li>Los archivos .java se seleccionan por defecto, otros tipos de archivo están deseleccionados.</li>
+      <li>Descarga del archivo unificado.</li>
+      <li>Historial de procesados (con diálogo informativo sobre limitaciones).</li>
+      <li>Selector de tema (claro/oscuro).</li>
+      <li>Enlace para reportar problemas/sugerencias en GitHub.</li>
+      <li>Estimación de tokens aproximada en la vista previa.</li>
+      <li>Visualización de la versión de la aplicación en la cabecera.</li>
+    </ul>
+  `;
+
+
   return (
     <div className="min-h-screen flex flex-col bg-background text-foreground">
       <HeaderControls 
         previewEnabled={isPreviewEnabled}
         onPreviewToggle={setIsPreviewEnabled}
         appVersion={APP_VERSION}
+        onVersionClick={handleVersionClick}
       />
       <main className="flex-grow container mx-auto px-4 py-8">
         <FileDropzone onFilesProcessed={handleFilesDropped} />
@@ -136,6 +159,21 @@ export default function JavaUnifierPage() {
             </AlertDialogHeader>
             <AlertDialogFooter>
               <AlertDialogAction onClick={() => setIsRecentInfoModalOpen(false)}>Entendido</AlertDialogAction>
+            </AlertDialogFooter>
+          </AlertDialogContent>
+        </AlertDialog>
+      )}
+      {isChangelogModalOpen && (
+        <AlertDialog open={isChangelogModalOpen} onOpenChange={setIsChangelogModalOpen}>
+          <AlertDialogContent className="max-w-lg">
+            <AlertDialogHeader>
+              <AlertDialogTitle>Novedades de la Versión {APP_VERSION}</AlertDialogTitle>
+              <AlertDialogDescription asChild>
+                 <div className="max-h-[60vh] overflow-y-auto pr-2 mt-2" dangerouslySetInnerHTML={{ __html: changelogContentForV010 }} />
+              </AlertDialogDescription>
+            </AlertDialogHeader>
+            <AlertDialogFooter>
+              <AlertDialogAction onClick={() => setIsChangelogModalOpen(false)}>Cerrar</AlertDialogAction>
             </AlertDialogFooter>
           </AlertDialogContent>
         </AlertDialog>
