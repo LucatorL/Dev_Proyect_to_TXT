@@ -25,15 +25,14 @@ import { Button } from '@/components/ui/button';
 import { Github } from 'lucide-react';
 
 const MAX_RECENTS = 3;
-const APP_VERSION = "0.1.0"; 
+const APP_VERSION = "0.1.1"; 
 
 export default function JavaUnifierPage() {
   const [recents, setRecents] = useLocalStorage<RecentEntry[]>('java-unifier-recents', []);
   
   const [processedProjects, setProcessedProjects] = useState<ProjectFile[]>([]);
   const [isModalOpen, setIsModalOpen] = useState(false);
-  const [modalInitialProjectName, setModalInitialProjectName] = useState("");
-
+  
   const [isRecentInfoModalOpen, setIsRecentInfoModalOpen] = useState(false);
   const [selectedRecentForInfoModal, setSelectedRecentForInfoModal] = useState<RecentEntry | null>(null);
   const [isPreviewEnabled, setIsPreviewEnabled] = useState(true);
@@ -41,6 +40,13 @@ export default function JavaUnifierPage() {
   const [isChangelogModalOpen, setIsChangelogModalOpen] = useState(false);
 
   const { toast } = useToast();
+
+  useEffect(() => {
+    // If modal is open and there are no more projects to process, close the modal
+    if (isModalOpen && processedProjects.length === 0) {
+      setIsModalOpen(false);
+    }
+  }, [processedProjects, isModalOpen]);
 
   const addRecentEntry = useCallback((project: ProjectFile) => {
     setRecents(prevRecents => {
@@ -74,8 +80,12 @@ export default function JavaUnifierPage() {
         if(proj.files.length > 0) addRecentEntry(proj);
       });
 
-      setProcessedProjects(projects);
-      setModalInitialProjectName(getProjectBaseName(projects[0].name));
+      setProcessedProjects(prev => {
+        // Avoid duplicating projects if they are dropped again, or handle updates if necessary
+        const newProjectIds = new Set(projects.map(p => p.id));
+        const existingProjects = prev.filter(ep => !newProjectIds.has(ep.id));
+        return [...existingProjects, ...projects];
+      });
       
       setIsModalOpen(true); 
 
@@ -89,9 +99,24 @@ export default function JavaUnifierPage() {
     }
   };
 
-  const handleModalConfirm = (selectedFiles: ProcessedFile[], unifiedContent: string) => {
-    // Download is handled inside the modal.
+  const handleSingleProjectProcessed = (projectId: string, downloadData: { fileName: string; content: string }) => {
+    downloadTextFile(downloadData.fileName, downloadData.content);
+    setProcessedProjects(prev => prev.filter(p => p.id !== projectId));
+    toast({ title: "Éxito", description: `Proyecto ${getProjectBaseName(downloadData.fileName.replace('_unificado.txt', ''))} procesado y descargado.` });
+    // Modal stays open if more projects, handled by useEffect
   };
+
+  const handleMultiProjectProcessed = (projectIdsToRemove: string[], downloadData: { fileName: string; content: string }) => {
+    downloadTextFile(downloadData.fileName, downloadData.content);
+    if (projectIdsToRemove.length > 0) {
+      setProcessedProjects(prev => prev.filter(p => !projectIdsToRemove.includes(p.id)));
+    } else { // If no specific projects to remove (e.g. user selected nothing but clicked download)
+      setProcessedProjects([]); // Clear all, or just close modal
+    }
+    toast({ title: "Éxito", description: `Archivo ${downloadData.fileName} descargado.` });
+    setIsModalOpen(false); // Close modal after multi-project download
+  };
+
 
   const handleSelectRecent = (recent: RecentEntry) => {
     setSelectedRecentForInfoModal(recent);
@@ -102,7 +127,7 @@ export default function JavaUnifierPage() {
     setIsChangelogModalOpen(true);
   };
 
-  const changelogContentForV010 = `
+  const changelogContentForV011 = `
     <ul class="list-disc pl-5 space-y-1 text-sm">
       <li>Versión inicial de Java Unifier.</li>
       <li>Funcionalidad de arrastrar y soltar para carpetas y archivos soportados.</li>
@@ -120,7 +145,9 @@ export default function JavaUnifierPage() {
       <li>El texto "aplicación original" en el pie de página ahora enlaza al repositorio de GitHub.</li>
       <li>La foto de perfil y el nombre "Lucas" en el pie de página ahora enlazan a su perfil de GitHub.</li>
       <li>Rehabilitado el interruptor "Unificar Múltiples Proyectos" en la cabecera.</li>
-      <li>Añadida navegación por proyectos individuales en el modal de selección cuando "Unificar Múltiples Proyectos" está desactivado.</li>
+      <li>Añadida navegación por proyectos individuales en el modal de selección cuando "Unificar Múltiples Proyectos" está desactivado, con flechas laterales.</li>
+      <li>En modo de proyecto individual, al descargar, solo ese proyecto se elimina de la lista y el modal permanece abierto si hay más proyectos.</li>
+      <li>Actualización de la versión a 0.1.1.</li>
     </ul>
   `;
 
@@ -148,9 +175,9 @@ export default function JavaUnifierPage() {
           isOpen={isModalOpen}
           onClose={() => setIsModalOpen(false)}
           projectsToProcess={processedProjects}
-          onConfirm={handleModalConfirm}
-          isMultiProjectMode={isMultiProjectMode} 
-          initialProjectName={modalInitialProjectName}
+          onSingleProjectProcessed={handleSingleProjectProcessed}
+          onMultiProjectProcessed={handleMultiProjectProcessed}
+          isMultiProjectMode={isMultiProjectMode}
           showPreview={isPreviewEnabled}
         />
       )}
@@ -179,7 +206,7 @@ export default function JavaUnifierPage() {
             <AlertDialogHeader>
               <AlertDialogTitle>Novedades de la Versión {APP_VERSION}</AlertDialogTitle>
               <AlertDialogDescription asChild>
-                 <div className="max-h-[60vh] overflow-y-auto pr-2 mt-2" dangerouslySetInnerHTML={{ __html: changelogContentForV010 }} />
+                 <div className="max-h-[60vh] overflow-y-auto pr-2 mt-2" dangerouslySetInnerHTML={{ __html: changelogContentForV011 }} />
               </AlertDialogDescription>
             </AlertDialogHeader>
             <AlertDialogFooter>
