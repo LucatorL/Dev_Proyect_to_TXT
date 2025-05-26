@@ -2,7 +2,7 @@
 // components/java-unifier/FileSelectionModal.tsx
 "use client"
 
-import React, { useState, useEffect, useMemo } from 'react';
+import React, { useState, useEffect, useMemo, useCallback } from 'react';
 import {
   Dialog,
   DialogContent,
@@ -27,12 +27,14 @@ import { Tooltip, TooltipContent, TooltipProvider, TooltipTrigger } from '@/comp
 
 interface FileSelectionModalProps {
   isOpen: boolean;
-  onClose: () => void;
+  onClose: () => void; // Called when the modal should be closed by X, Esc, or Cancel button
   projectsToProcess: ProjectFile[];
   onSingleProjectProcessed: (projectId: string, downloadData: { fileName: string; content: string }) => void;
   onMultiProjectProcessed: (projectIdsToRemove: string[], downloadData: { fileName: string; content: string }) => void;
   isMultiProjectMode: boolean;
   showPreview: boolean;
+  initialProjectIndex?: number;
+  onProjectViewedIndexChange?: (index: number) => void;
 }
 
 const getFileIcon = (fileType: string) => {
@@ -67,6 +69,8 @@ export function FileSelectionModal({
   onMultiProjectProcessed,
   isMultiProjectMode,
   showPreview,
+  initialProjectIndex = 0,
+  onProjectViewedIndexChange,
 }: FileSelectionModalProps) {
   const [currentDisplayProjects, setCurrentDisplayProjects] = useState<ProjectFile[]>(projectsToProcess);
   const [unifiedPreview, setUnifiedPreview] = useState("");
@@ -74,24 +78,38 @@ export function FileSelectionModal({
   const { toast } = useToast();
   const [outputFileName, setOutputFileName] = useState("proyecto_unificado.txt");
   const [individualFilePreview, setIndividualFilePreview] = useState<{ name: string, content: string, fileType: string } | null>(null);
-  const [currentProjectIndex, setCurrentProjectIndex] = useState(0);
+  const [currentProjectIndex, setCurrentProjectIndex] = useState(initialProjectIndex);
 
   useEffect(() => {
     setCurrentDisplayProjects(projectsToProcess);
     if (projectsToProcess.length > 0) {
-        setCurrentProjectIndex(idx => Math.min(idx, projectsToProcess.length - 1));
-    } else if (isOpen) { 
-        // Parent component (JavaUnifierPage) handles closing the modal if projectsToProcess becomes empty.
+      const newIndex = Math.min(currentProjectIndex, projectsToProcess.length - 1);
+      if (newIndex !== currentProjectIndex) {
+        setCurrentProjectIndex(newIndex);
+      }
+    } else if (isOpen) {
+      // Parent component (JavaUnifierPage) handles closing the modal if projectsToProcess becomes empty.
     }
-  }, [projectsToProcess, isOpen]);
+  }, [projectsToProcess, isOpen, currentProjectIndex]);
+
+  useEffect(() => {
+    setCurrentProjectIndex(initialProjectIndex);
+  }, [initialProjectIndex]);
   
+  useEffect(() => {
+    if (onProjectViewedIndexChange) {
+      onProjectViewedIndexChange(currentProjectIndex);
+    }
+  }, [currentProjectIndex, onProjectViewedIndexChange]);
+
   useEffect(() => {
     let fileName = "Proyectos_Unificados_unificado.txt";
     if (currentDisplayProjects.length > 0) {
+      const projectForName = currentDisplayProjects[currentProjectIndex] || currentDisplayProjects[0];
       if (isMultiProjectMode) {
-        fileName = (currentDisplayProjects.length > 1 ? "Proyectos_Unificados" : getProjectBaseName(currentDisplayProjects[0]?.name || "proyecto")) + "_unificado.txt";
+        fileName = (currentDisplayProjects.length > 1 ? "Proyectos_Unificados" : getProjectBaseName(projectForName?.name || "proyecto")) + "_unificado.txt";
       } else {
-        fileName = getProjectBaseName(currentDisplayProjects[currentProjectIndex]?.name || "proyecto") + "_unificado.txt";
+        fileName = getProjectBaseName(projectForName?.name || "proyecto") + "_unificado.txt";
       }
     }
     setOutputFileName(fileName);
@@ -255,19 +273,27 @@ export function FileSelectionModal({
   }, [projectsForListDisplay]);
 
 
-  if (!isOpen || projectsToProcess.length === 0) return null; // Also ensure not to render if no projects
+  const handleNextProject = useCallback(() => {
+    setCurrentProjectIndex(prev => Math.min(projectsToProcess.length - 1, prev + 1));
+  }, [projectsToProcess.length]);
+
+  const handlePrevProject = useCallback(() => {
+    setCurrentProjectIndex(prev => Math.max(0, prev - 1));
+  }, []);
+
+
+  if (!isOpen || projectsToProcess.length === 0) return null; 
   const currentSingleProjectNameForTitle = !isMultiProjectMode && currentDisplayProjects[currentProjectIndex] ? currentDisplayProjects[currentProjectIndex].name : (projectsToProcess[0]?.name || 'Proyecto');
 
   return (
     <Dialog open={isOpen} onOpenChange={onClose}>
-      <DialogContent className="max-w-4xl h-[90vh] flex flex-col p-0"> {/* Removed 'relative' */}
-        {/* Navigation Arrows for Single Project Mode */}
+      <DialogContent className="max-w-4xl h-[90vh] flex flex-col p-0">
         {!isMultiProjectMode && projectsToProcess.length > 1 && (
           <>
             <Button
               variant="outline"
               size="icon"
-              onClick={() => setCurrentProjectIndex(prev => Math.max(0, prev - 1))}
+              onClick={handlePrevProject}
               disabled={currentProjectIndex === 0}
               className="absolute left-2 top-1/2 -translate-y-1/2 z-20 h-10 w-10 rounded-full shadow-md bg-background/80 hover:bg-background"
               title="Proyecto Anterior"
@@ -277,7 +303,7 @@ export function FileSelectionModal({
             <Button
               variant="outline"
               size="icon"
-              onClick={() => setCurrentProjectIndex(prev => Math.min(projectsToProcess.length - 1, prev + 1))}
+              onClick={handleNextProject}
               disabled={currentProjectIndex === projectsToProcess.length - 1}
               className="absolute right-2 top-1/2 -translate-y-1/2 z-20 h-10 w-10 rounded-full shadow-md bg-background/80 hover:bg-background"
               title="Siguiente Proyecto"
@@ -302,7 +328,6 @@ export function FileSelectionModal({
         </DialogHeader>
 
         <div className="flex-grow grid grid-cols-1 md:grid-cols-2 gap-4 overflow-hidden p-6 pt-2">
-          {/* Files Selection Panel */}
           <div className="flex flex-col overflow-hidden">
             <div className="flex items-center justify-between mb-2 p-1 rounded-md bg-secondary flex-wrap gap-1">
               <Label className="font-semibold px-2">
@@ -327,7 +352,7 @@ export function FileSelectionModal({
               )}
               {organizedData.map(projectGroup => (
                 <div key={projectGroup.projectName + projectGroup.projectActualId} className="mb-3">
-                  {(isMultiProjectMode && projectsToProcess.length > 1) && (
+                  {(isMultiProjectMode && projectsToProcess.length > 1 && projectsForListDisplay.length > 1) && (
                     <h4 className="text-sm font-semibold p-2 bg-muted rounded-t-md sticky top-0 z-10">{projectGroup.projectName}</h4>
                   )}
                   {projectGroup.packages.map(pkgGroup => (
@@ -361,7 +386,6 @@ export function FileSelectionModal({
             </ScrollArea>
           </div>
 
-          {/* Preview Panel */}
           <div className="flex flex-col overflow-hidden">
             <div className="flex items-center mb-2 p-1">
               <Label className="font-semibold">Vista Previa Unificada</Label>

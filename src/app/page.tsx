@@ -25,7 +25,7 @@ import { Button } from '@/components/ui/button';
 import { Github } from 'lucide-react';
 
 const MAX_RECENTS = 3;
-const APP_VERSION = "0.1.3"; 
+const APP_VERSION = "0.1.4"; 
 
 export default function JavaUnifierPage() {
   const [recents, setRecents] = useLocalStorage<RecentEntry[]>('java-unifier-recents', []);
@@ -38,10 +38,12 @@ export default function JavaUnifierPage() {
   const [isPreviewEnabled, setIsPreviewEnabled] = useState(true);
   const [isMultiProjectMode, setIsMultiProjectMode] = useState(true); 
   const [isChangelogModalOpen, setIsChangelogModalOpen] = useState(false);
+  const [currentProjectIndexInModal, setCurrentProjectIndexInModal] = useState(0);
 
   const { toast } = useToast();
 
   useEffect(() => {
+    // Closes modal if it's open and the project list becomes empty (e.g., after processing the last project)
     if (isModalOpen && processedProjects.length === 0) {
       setIsModalOpen(false);
     }
@@ -79,13 +81,13 @@ export default function JavaUnifierPage() {
         if(proj.files.length > 0) addRecentEntry(proj);
       });
 
-      setProcessedProjects(prev => {
-        const newProjectIds = new Set(projects.map(p => p.id));
-        const existingProjects = prev.filter(ep => !newProjectIds.has(ep.id)); // This line was changed to filter out by newProjectIds
-        return [...existingProjects, ...projects];
-      });
+      // CRITICAL: New file drop always replaces the current batch.
+      setProcessedProjects(projects);
+      setCurrentProjectIndexInModal(0); // Reset index for new batch
       
-      setIsModalOpen(true); 
+      if (projects.length > 0) {
+        setIsModalOpen(true); 
+      }
 
     } catch (error) {
       console.error("Error processing files:", error);
@@ -97,16 +99,27 @@ export default function JavaUnifierPage() {
     }
   };
   
-  const handleModalClose = () => {
+  const handleModalClose = useCallback(() => {
+    // This function is called when the modal is dismissed (X, Esc, Cancel)
+    if (!isMultiProjectMode && processedProjects.length > 1 && currentProjectIndexInModal < processedProjects.length) {
+      // Single-project mode, multiple projects in batch: remove only the viewed project from the batch.
+      const projectToRemoveId = processedProjects[currentProjectIndexInModal]?.id;
+      if (projectToRemoveId) {
+        setProcessedProjects(prev => prev.filter(p => p.id !== projectToRemoveId));
+      }
+    } else {
+      // Multi-project mode, or single-project mode with 0/1 project: clear the entire batch.
+      setProcessedProjects([]);
+    }
     setIsModalOpen(false);
-    // Critical fix: Clear projects when modal is closed without a save operation
-    // This prevents old data from persisting into the next file drop.
-    setProcessedProjects([]); 
-  };
+    setCurrentProjectIndexInModal(0); // Reset for next time
+  }, [isMultiProjectMode, processedProjects, currentProjectIndexInModal, setIsModalOpen, setProcessedProjects]);
+
 
   const handleSingleProjectProcessed = (projectId: string, downloadData: { fileName: string; content: string }) => {
     downloadTextFile(downloadData.fileName, downloadData.content);
     setProcessedProjects(prev => prev.filter(p => p.id !== projectId)); 
+    setCurrentProjectIndexInModal(idx => Math.max(0, Math.min(idx, processedProjects.length - 2))); // Adjust index if current is removed
     toast({ title: "Éxito", description: `Proyecto ${getProjectBaseName(downloadData.fileName.replace('_unificado.txt', ''))} procesado y descargado.` });
   };
 
@@ -118,6 +131,7 @@ export default function JavaUnifierPage() {
       setProcessedProjects([]); 
     }
     toast({ title: "Éxito", description: `Archivo ${downloadData.fileName} descargado.` });
+    setIsModalOpen(false); // Close modal after multi-project processing
   };
 
 
@@ -155,9 +169,15 @@ export default function JavaUnifierPage() {
       <li>Corregido error de posicionamiento del modal de selección de archivos (estaba cortado).</li>
       <li>Actualización de la versión a 0.1.2.</li>
       <li>Corregido un error grave donde proyectos previamente unificados y cerrados podían ser incluidos incorrectamente en unificaciones posteriores. Esto se solucionó asegurando que el estado interno del modal de selección se reinicie completamente cuando cambia la lista de proyectos (usando una 'key' dinámica en el componente).</li>
-      <li>Mejorado el manejo de la lista de proyectos en el modal de selección para reflejar con mayor precisión los cambios.</li>
       <li>Actualización de la versión a 0.1.3.</li>
-      <li>Corregido error crítico: los proyectos de una sesión anterior del modal (cerrada con "X" o "Cancelar") ya no se incluyen incorrectamente en nuevas unificaciones. La lista de proyectos activos ahora se limpia correctamente al cerrar el modal sin guardar.</li>
+      <li>Ajustado el comportamiento al cerrar el modal de selección de archivos (con "X", Esc o "Cancelar"):
+        <ul class="list-disc pl-5">
+          <li>En modo "Unificar Múltiples Proyectos" o si solo hay un proyecto en el lote: se limpia la lista completa de proyectos cargados.</li>
+          <li>En modo de proyecto individual (con la opción de múltiples desactivada) y si hay varios proyectos en el lote: solo se eliminará del lote el proyecto que se estaba visualizando en el modal al momento de cerrarlo. El modal se cerrará.</li>
+          <li>Al arrastrar nuevos archivos, siempre se iniciará con un lote nuevo, sin mezclar con proyectos de un cierre anterior.</li>
+        </ul>
+      </li>
+      <li>Actualización de la versión a 0.1.4.</li>
     </ul>
   `;
 
@@ -182,14 +202,16 @@ export default function JavaUnifierPage() {
       </main>
       {isModalOpen && processedProjects.length > 0 && (
         <FileSelectionModal
-          key={processedProjects.map(p => p.id).join('-') || 'modal-empty'}
+          key={processedProjects.map(p => p.id).join('-') || 'modal-empty'} // Ensures modal re-renders if project list fundamentally changes
           isOpen={isModalOpen}
-          onClose={handleModalClose}
+          onClose={handleModalClose} // This is for X, Esc, Cancel
           projectsToProcess={processedProjects}
           onSingleProjectProcessed={handleSingleProjectProcessed}
           onMultiProjectProcessed={handleMultiProjectProcessed}
           isMultiProjectMode={isMultiProjectMode}
           showPreview={isPreviewEnabled}
+          initialProjectIndex={currentProjectIndexInModal}
+          onProjectViewedIndexChange={setCurrentProjectIndexInModal}
         />
       )}
       {selectedRecentForInfoModal && (
