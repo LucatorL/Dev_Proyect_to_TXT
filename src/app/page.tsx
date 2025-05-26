@@ -25,7 +25,7 @@ import { Button } from '@/components/ui/button';
 import { Github } from 'lucide-react';
 
 const MAX_RECENTS = 3;
-const APP_VERSION = "0.1.1"; 
+const APP_VERSION = "0.1.2"; 
 
 export default function JavaUnifierPage() {
   const [recents, setRecents] = useLocalStorage<RecentEntry[]>('java-unifier-recents', []);
@@ -100,9 +100,8 @@ export default function JavaUnifierPage() {
 
   const handleSingleProjectProcessed = (projectId: string, downloadData: { fileName: string; content: string }) => {
     downloadTextFile(downloadData.fileName, downloadData.content);
-    setProcessedProjects(prev => prev.filter(p => p.id !== projectId)); // Remove only the processed project
+    setProcessedProjects(prev => prev.filter(p => p.id !== projectId)); 
     toast({ title: "Éxito", description: `Proyecto ${getProjectBaseName(downloadData.fileName.replace('_unificado.txt', ''))} procesado y descargado.` });
-    // Modal stays open if more projects, handled by useEffect based on processedProjects.length
   };
 
   const handleMultiProjectProcessed = (projectIdsToRemove: string[], downloadData: { fileName: string; content: string }) => {
@@ -113,7 +112,6 @@ export default function JavaUnifierPage() {
       setProcessedProjects([]); 
     }
     toast({ title: "Éxito", description: `Archivo ${downloadData.fileName} descargado.` });
-    // Modal closing is handled by useEffect based on processedProjects.length
   };
 
 
@@ -126,7 +124,7 @@ export default function JavaUnifierPage() {
     setIsChangelogModalOpen(true);
   };
 
-  const changelogContentForV011 = `
+  const changelogContent = `
     <ul class="list-disc pl-5 space-y-1 text-sm">
       <li>Versión inicial de Java Unifier.</li>
       <li>Funcionalidad de arrastrar y soltar para carpetas y archivos soportados.</li>
@@ -149,6 +147,9 @@ export default function JavaUnifierPage() {
       <li>Actualización de la versión a 0.1.1.</li>
       <li>Corregido error de visualización de conteo de tokens negativo.</li>
       <li>Corregido error de posicionamiento del modal de selección de archivos (estaba cortado).</li>
+      <li>Actualización de la versión a 0.1.2.</li>
+      <li>Corregido un error grave donde proyectos previamente unificados y cerrados podían ser incluidos incorrectamente en unificaciones posteriores al forzar el re-montaje del modal de selección.</li>
+      <li>Mejorado el manejo de la lista de proyectos en el modal de selección para reflejar con mayor precisión los cambios.</li>
     </ul>
   `;
 
@@ -173,6 +174,7 @@ export default function JavaUnifierPage() {
       </main>
       {isModalOpen && processedProjects.length > 0 && (
         <FileSelectionModal
+          key={processedProjects.map(p => p.id).join('-') || 'modal-empty'}
           isOpen={isModalOpen}
           onClose={() => setIsModalOpen(false)}
           projectsToProcess={processedProjects}
@@ -207,7 +209,7 @@ export default function JavaUnifierPage() {
             <AlertDialogHeader>
               <AlertDialogTitle>Novedades de la Versión {APP_VERSION}</AlertDialogTitle>
               <AlertDialogDescription asChild>
-                 <div className="max-h-[60vh] overflow-y-auto pr-2 mt-2" dangerouslySetInnerHTML={{ __html: changelogContentForV011 }} />
+                 <div className="max-h-[60vh] overflow-y-auto pr-2 mt-2" dangerouslySetInnerHTML={{ __html: changelogContent }} />
               </AlertDialogDescription>
             </AlertDialogHeader>
             <AlertDialogFooter>
