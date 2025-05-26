@@ -8,11 +8,13 @@ import { Label } from "@/components/ui/label"
 interface HeaderControlsProps {
   previewEnabled: boolean;
   onPreviewToggle: (enabled: boolean) => void;
+  appVersion?: string;
 }
 
 export function HeaderControls({
   previewEnabled,
   onPreviewToggle,
+  appVersion,
 }: HeaderControlsProps) {
   return (
     <div className="flex items-center justify-between p-4 border-b">
@@ -28,7 +30,14 @@ export function HeaderControls({
           </Label>
         </div>
       </div>
-      <ThemeToggle />
+      <div className="flex items-center space-x-3">
+        {appVersion && (
+          <span className="text-xs text-muted-foreground">
+            v{appVersion}
+          </span>
+        )}
+        <ThemeToggle />
+      </div>
     </div>
   )
 }

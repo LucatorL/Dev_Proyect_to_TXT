@@ -24,6 +24,7 @@ import { Button } from '@/components/ui/button';
 import { Github } from 'lucide-react';
 
 const MAX_RECENTS = 3;
+const APP_VERSION = "0.1.0"; // Version from package.json
 
 export default function JavaUnifierPage() {
   const [recents, setRecents] = useLocalStorage<RecentEntry[]>('java-unifier-recents', []);
@@ -71,7 +72,6 @@ export default function JavaUnifierPage() {
       });
 
       setProcessedProjects(projects);
-      // Always true for multi-project, name determined by number of projects
       setModalInitialProjectName(projects.length > 1 ? "Proyectos_Unificados" : getProjectBaseName(projects[0].name));
       
       setIsModalOpen(true); 
@@ -100,6 +100,7 @@ export default function JavaUnifierPage() {
       <HeaderControls 
         previewEnabled={isPreviewEnabled}
         onPreviewToggle={setIsPreviewEnabled}
+        appVersion={APP_VERSION}
       />
       <main className="flex-grow container mx-auto px-4 py-8">
         <FileDropzone onFilesProcessed={handleFilesDropped} />
@@ -115,22 +116,22 @@ export default function JavaUnifierPage() {
           onClose={() => setIsModalOpen(false)}
           projectsToProcess={processedProjects}
           onConfirm={handleModalConfirm}
-          isMultiProjectView={true} // Always true now
+          isMultiProjectView={true} 
           initialProjectName={modalInitialProjectName}
           showPreview={isPreviewEnabled}
         />
       )}
       {selectedRecentForInfoModal && (
-        <AlertDialog open={isRecentInfoModalOpen} onOpenChange={setIsRecentInfoModalOpen}>
+         <AlertDialog open={isRecentInfoModalOpen} onOpenChange={setIsRecentInfoModalOpen}>
           <AlertDialogContent>
             <AlertDialogHeader>
               <AlertDialogTitle>Información sobre: "{selectedRecentForInfoModal.name}"</AlertDialogTitle>
               <AlertDialogDescription>
                 Este elemento aparece en el "Historial de Procesados" como un recordatorio de los proyectos que has procesado.
                 <br /><br />
-                Debido a las limitaciones de seguridad del navegador, la aplicación no puede recargar automáticamente los archivos.
+                Debido a las limitaciones de seguridad del navegador, la aplicación no puede recargar automáticamente los archivos desde aquí.
                 <br /><br />
-                Para volver a procesar '{selectedRecentForInfoModal.name}', por favor, arrastra y suelta la carpeta o los archivos correspondientes nuevamente.
+                Para volver a procesar '{selectedRecentForInfoModal.name}', por favor, arrastra y suelta la carpeta o los archivos correspondientes nuevamente en la zona principal.
               </AlertDialogDescription>
             </AlertDialogHeader>
             <AlertDialogFooter>
