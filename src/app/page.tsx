@@ -62,7 +62,7 @@ export default function JavaUnifierPage() {
       if (projects.length === 0 || projects.every(p => p.files.length === 0)) {
         toast({
           title: "Sin archivos soportados",
-          description: "No se encontraron archivos soportados (.java, .xml, .txt, etc.) en los elementos proporcionados o no se pudieron procesar.",
+          description: `No se encontraron archivos soportados (${['java', 'xml', 'pom', 'txt', 'properties', 'md', 'sql', 'csv', 'yaml', 'yml', 'classpath', 'project', 'dat'].join(', ')}) en los elementos proporcionados o no se pudieron procesar.`,
           variant: "default",
         });
         return;
@@ -113,6 +113,7 @@ export default function JavaUnifierPage() {
       <li>Enlace para reportar problemas/sugerencias en GitHub.</li>
       <li>Estimación de tokens aproximada en la vista previa.</li>
       <li>Visualización de la versión de la aplicación en la cabecera y changelog.</li>
+      <li>El asistente de IA ahora actualizará este changelog con cada cambio aplicado.</li>
     </ul>
   `;
 
@@ -201,3 +202,4 @@ export default function JavaUnifierPage() {
     </div>
   );
 }
+
