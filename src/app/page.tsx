@@ -8,7 +8,6 @@ import { HeaderControls } from '@/components/java-unifier/HeaderControls';
 import { FileDropzone } from '@/components/java-unifier/FileDropzone';
 import { RecentFilesList } from '@/components/java-unifier/RecentFilesList';
 import { FileSelectionModal } from '@/components/java-unifier/FileSelectionModal';
-// ManualAddContentModal is now handled by FileSelectionModal
 import useLocalStorage from '@/hooks/useLocalStorage';
 import type { ProjectFile, RecentEntry, ProcessedFile } from '@/types/java-unifier';
 import { processDroppedItems, unifyJavaFiles, downloadTextFile, getProjectBaseName, getFileExtension, extractJavaPackageName } from '@/lib/file-processor';
@@ -23,17 +22,16 @@ import {
   AlertDialogTitle,
 } from "@/components/ui/alert-dialog";
 import { Button } from '@/components/ui/button';
-import { Github } from 'lucide-react'; // PlusCircle removed
+import { Github } from 'lucide-react';
 
 const MAX_RECENTS = 3;
-const APP_VERSION = "0.1.5"; 
+const APP_VERSION = "0.1.6"; 
 
 export default function JavaUnifierPage() {
   const [recents, setRecents] = useLocalStorage<RecentEntry[]>('java-unifier-recents', []);
   
   const [processedProjects, setProcessedProjects] = useState<ProjectFile[]>([]);
   const [isSelectionModalOpen, setIsSelectionModalOpen] = useState(false);
-  // isManualAddModalOpen state is removed from here
   
   const [isRecentInfoModalOpen, setIsRecentInfoModalOpen] = useState(false);
   const [selectedRecentForInfoModal, setSelectedRecentForInfoModal] = useState<RecentEntry | null>(null);
@@ -78,11 +76,13 @@ export default function JavaUnifierPage() {
         return;
       }
       
+      // Replace current projects with the new batch
+      setProcessedProjects(projects);
+      
       projects.forEach(proj => {
         if(proj.files.length > 0) addRecentEntry(proj);
       });
-
-      setProcessedProjects(projects);
+      
       setCurrentProjectIndexInModal(0); 
       
       if (projects.length > 0) {
@@ -100,26 +100,34 @@ export default function JavaUnifierPage() {
   };
   
   const handleSelectionModalClose = useCallback(() => {
-    const projectToRemoveId = processedProjects[currentProjectIndexInModal]?.id;
+    setIsSelectionModalOpen(false); // Always close the modal
 
-    if (!isMultiProjectMode && processedProjects.length > 1 && projectToRemoveId) {
-      const updatedProjects = processedProjects.filter(p => p.id !== projectToRemoveId);
-      setProcessedProjects(updatedProjects);
-      setCurrentProjectIndexInModal(prevIndex => Math.max(0, Math.min(prevIndex, updatedProjects.length - 1)));
-
-      if (updatedProjects.length === 0) {
-        setIsSelectionModalOpen(false); 
-      }
+    if (isMultiProjectMode || processedProjects.length <= 1) {
+        // If in multi-project mode, or only one/zero projects were in the list, clear all.
+        setProcessedProjects([]);
     } else {
-      setProcessedProjects([]);
-      setIsSelectionModalOpen(false);
-      setCurrentProjectIndexInModal(0); 
+        // In single-project mode with multiple projects, remove only the one being viewed.
+        if (processedProjects[currentProjectIndexInModal]) {
+            const projectToRemoveId = processedProjects[currentProjectIndexInModal].id;
+            const updatedProjects = processedProjects.filter(p => p.id !== projectToRemoveId);
+            setProcessedProjects(updatedProjects);
+            // Adjust index if necessary, though modal is closing.
+            setCurrentProjectIndexInModal(prevIndex => Math.max(0, Math.min(prevIndex, updatedProjects.length - 1)));
+        } else {
+            // Should not happen if modal was open with projects, but as a fallback:
+            setProcessedProjects([]);
+        }
     }
-  }, [isMultiProjectMode, processedProjects, currentProjectIndexInModal, setProcessedProjects, setIsSelectionModalOpen, setCurrentProjectIndexInModal]);
+}, [isMultiProjectMode, processedProjects, currentProjectIndexInModal, setProcessedProjects, setIsSelectionModalOpen, setCurrentProjectIndexInModal]);
 
 
   const handleSingleProjectProcessed = (projectId: string, downloadData: { fileName: string; content: string }) => {
     downloadTextFile(downloadData.fileName, downloadData.content);
+    const projectThatWasProcessed = processedProjects.find(p => p.id === projectId);
+    if (projectThatWasProcessed) {
+        addRecentEntry(projectThatWasProcessed); // Ensure it's at the top of recents
+    }
+
     const updatedProjects = processedProjects.filter(p => p.id !== projectId);
     setProcessedProjects(updatedProjects); 
     setCurrentProjectIndexInModal(idx => Math.max(0, Math.min(idx, updatedProjects.length - 1)));
@@ -131,6 +139,16 @@ export default function JavaUnifierPage() {
 
   const handleMultiProjectProcessed = (projectIdsToRemove: string[], downloadData: { fileName: string; content: string }) => {
     downloadTextFile(downloadData.fileName, downloadData.content);
+
+    const unifiedProjectEntry: ProjectFile = {
+        id: `unified-${Date.now()}-${Math.random()}`,
+        name: getProjectBaseName(downloadData.fileName.replace('_unificado.txt', '')) || "Proyectos Unificados",
+        type: 'folder', 
+        files: [], 
+        timestamp: Date.now(),
+    };
+    addRecentEntry(unifiedProjectEntry);
+    
     if (projectIdsToRemove.length > 0) {
       setProcessedProjects(prev => prev.filter(p => !projectIdsToRemove.includes(p.id)));
     } else { 
@@ -140,7 +158,6 @@ export default function JavaUnifierPage() {
     setIsSelectionModalOpen(false); 
   };
 
-  // This function is now called by FileSelectionModal
   const handleManualContentAddRequested = (fileName: string, content: string) => {
     if (!fileName.trim() || !content.trim()) {
       toast({ title: "Error", description: "El nombre del archivo y el contenido no pueden estar vacíos.", variant: "destructive" });
@@ -148,39 +165,70 @@ export default function JavaUnifierPage() {
     }
 
     const fileType = getFileExtension(fileName);
-    let packageName = "(Other Project Files)";
+    let packageName = OTHER_FILES_PACKAGE_NAME; // Default for non-Java or if package not found
     if (fileType === 'java') {
       packageName = extractJavaPackageName(content);
     }
-
-    const newFile: ProcessedFile = {
-      id: `manual-${Date.now()}-${Math.random()}`,
-      path: fileName, 
-      name: fileName,
-      content,
-      packageName,
-      fileType,
-      projectName: `Manual: ${fileName}`, 
-      selected: fileType === 'java',
-    };
-
-    const newProject: ProjectFile = {
-      id: `manual-project-${Date.now()}-${Math.random()}`,
-      name: `Manual: ${fileName}`,
-      type: 'file', 
-      files: [newFile],
-      timestamp: Date.now(),
-    };
-
-    setProcessedProjects(prevProjects => [...prevProjects, newProject]);
-    addRecentEntry(newProject); 
     
-    // FileSelectionModal is already open, it will re-render with new projects
-    // We might want to focus the newly added project if in single project mode
-    if (!isMultiProjectMode) {
-      setCurrentProjectIndexInModal(processedProjects.length); // This will be length BEFORE adding new project, so it's the index of the new one
+    const uniqueFileId = `manual-file-${Date.now()}-${Math.random()}`;
+
+    if (!isMultiProjectMode && processedProjects[currentProjectIndexInModal]) {
+        const targetProject = processedProjects[currentProjectIndexInModal];
+        const newFile: ProcessedFile = {
+            id: uniqueFileId,
+            path: fileName, 
+            name: fileName,
+            content,
+            packageName,
+            fileType,
+            projectName: targetProject.name, 
+            selected: fileType === 'java',
+        };
+
+        setProcessedProjects(prevProjects => {
+            return prevProjects.map((proj, index) => {
+                if (index === currentProjectIndexInModal) {
+                    const updatedProject = {
+                        ...proj,
+                        files: [...proj.files, newFile],
+                        timestamp: Date.now(), // Update timestamp of parent project
+                    };
+                    addRecentEntry(updatedProject); // Update recent entry for the parent project
+                    return updatedProject;
+                }
+                return proj;
+            });
+        });
+        toast({ title: "Archivo Añadido", description: `"${fileName}" añadido a ${targetProject.name}.` });
+
+    } else {
+        const newProjectName = `Manual: ${getProjectBaseName(fileName)}`;
+        const newFile: ProcessedFile = {
+            id: uniqueFileId,
+            path: fileName,
+            name: fileName,
+            content,
+            packageName,
+            fileType,
+            projectName: newProjectName,
+            selected: fileType === 'java',
+        };
+        const newProject: ProjectFile = {
+            id: `manual-project-${Date.now()}-${Math.random()}`,
+            name: newProjectName,
+            type: 'file', 
+            files: [newFile],
+            timestamp: Date.now(),
+        };
+
+        setProcessedProjects(prevProjects => [...prevProjects, newProject]);
+        addRecentEntry(newProject); 
+        
+        if (!isMultiProjectMode) {
+          setCurrentProjectIndexInModal(processedProjects.length); 
+        }
+        toast({ title: "Archivo Añadido", description: `"${fileName}" añadido como nuevo proyecto.` });
     }
-     toast({ title: "Archivo Añadido", description: `"${fileName}" añadido manualmente.` });
   };
 
 
@@ -195,6 +243,23 @@ export default function JavaUnifierPage() {
 
   const changelogContent = `
     <ul class="list-disc pl-5 space-y-2 text-sm">
+      <li>
+        Versión 0.1.6
+        <ul class="list-disc pl-5 space-y-1 mt-1">
+          <li>Adición Manual de Archivos:
+            <ul class="list-disc pl-5">
+              <li>Si "Unificar Múltiples Proyectos" está desactivado y hay un proyecto visible, el archivo manual se añade a ese proyecto.</li>
+              <li>En otros casos (múltiples proyectos activado, o ningún proyecto visible en modo individual), el archivo manual crea un nuevo "proyecto" en la lista.</li>
+              <li>La entrada de "Recientes" se actualiza para el proyecto modificado o el nuevo proyecto manual.</li>
+            </ul>
+          </li>
+          <li>Historial de Recientes para Unificaciones Múltiples:
+            <ul class="list-disc pl-5">
+              <li>Al unificar múltiples proyectos, se crea una entrada en "Recientes" (ej: "Proyectos Unificados").</li>
+            </ul>
+          </li>
+        </ul>
+      </li>
       <li>
         Versión 0.1.5
         <ul class="list-disc pl-5 space-y-1 mt-1">
@@ -283,7 +348,6 @@ export default function JavaUnifierPage() {
       />
       <main className="flex-grow container mx-auto px-4 py-8">
         <FileDropzone onFilesProcessed={handleFilesDropped} />
-        {/* Button for manual add removed from here */}
         <RecentFilesList 
             recents={recents} 
             onSelectRecent={handleSelectRecent}
@@ -292,7 +356,7 @@ export default function JavaUnifierPage() {
       </main>
       {isSelectionModalOpen && processedProjects.length > 0 && (
         <FileSelectionModal
-          key={processedProjects.map(p => p.id).join('-') || 'modal-empty'} 
+          key={processedProjects.map(p => p.id).join('-') + `-${currentProjectIndexInModal}-${isMultiProjectMode}`} 
           isOpen={isSelectionModalOpen}
           onClose={handleSelectionModalClose} 
           projectsToProcess={processedProjects}
@@ -302,10 +366,9 @@ export default function JavaUnifierPage() {
           showPreview={isPreviewEnabled}
           initialProjectIndex={currentProjectIndexInModal}
           onProjectViewedIndexChange={setCurrentProjectIndexInModal}
-          onManualFileRequested={handleManualContentAddRequested} // New prop
+          onManualFileRequested={handleManualContentAddRequested} 
         />
       )}
-      {/* ManualAddContentModal instance removed from here */}
       {selectedRecentForInfoModal && (
          <AlertDialog open={isRecentInfoModalOpen} onOpenChange={setIsRecentInfoModalOpen}>
           <AlertDialogContent>
@@ -380,3 +443,5 @@ export default function JavaUnifierPage() {
   );
 }
 
+
+    

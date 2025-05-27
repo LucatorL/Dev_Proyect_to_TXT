@@ -4,13 +4,14 @@ import type { ProcessedFile, ProjectFile } from '@/types/java-unifier';
 const MAX_FILE_SIZE = 1024 * 1024 * 5; // 5MB limit per file for client-side processing
 const MAX_TOTAL_FILES = 200; // Max number of files to process to prevent browser freeze
 
-const SUPPORTED_EXTENSIONS = ['java', 'xml', 'txt', 'properties', 'md', 'sql', 'csv', 'yaml', 'yml', 'pom', 'classpath', 'project', 'dat'];
+export const SUPPORTED_EXTENSIONS = ['java', 'xml', 'txt', 'properties', 'md', 'sql', 'csv', 'yaml', 'yml', 'pom', 'classpath', 'project', 'dat'];
 const JAVA_EXTENSION = 'java';
-const OTHER_FILES_PACKAGE_NAME = "(Other Project Files)";
-const DEFAULT_PACKAGE_NAME = "(Default Package)";
+export const OTHER_FILES_PACKAGE_NAME = "(Other Project Files)";
+export const DEFAULT_PACKAGE_NAME = "(Default Package)";
 
 // Basic function to get project base name
 export function getProjectBaseName(name: string): string {
+  if (!name) return "UntitledProject";
   let baseName = name;
   if (baseName.toLowerCase().endsWith(".zip")) {
     baseName = baseName.substring(0, baseName.length - 4);
@@ -18,27 +19,41 @@ export function getProjectBaseName(name: string): string {
     baseName = baseName.substring(0, baseName.length - 4);
   }
   baseName = baseName.replace(/\s*\(\d+\)$/, "").trim();
+  baseName = baseName.replace(/_unificado$/, "").trim(); // Clean up suffix if present
   return baseName.length > 0 ? baseName : "UntitledProject";
 }
 
 export function getFileExtension(fileName: string): string {
   if (!fileName || typeof fileName !== 'string') return 'unknown';
-  if (fileName.startsWith('.')) { // Handle hidden files like .classpath or .project
+  
+  // Handle filenames that are the extension itself (e.g., ".classpath", "pom.xml" where "pom" could be considered)
+  // More robust check for hidden files or files that look like extensions
+  if (fileName.startsWith('.')) { 
     const potentialExtension = fileName.substring(1);
     if (SUPPORTED_EXTENSIONS.includes(potentialExtension)) {
       return potentialExtension;
     }
   }
+  // For pom.xml specifically
+  if (fileName.toLowerCase() === 'pom.xml') {
+    return 'pom';
+  }
+
   const parts = fileName.split('.');
   if (parts.length > 1) {
-    return parts.pop()?.toLowerCase() || 'unknown';
+    const lastPart = parts.pop()?.toLowerCase();
+    if (lastPart && SUPPORTED_EXTENSIONS.includes(lastPart)) {
+      return lastPart;
+    }
+    // If "pom.xml", parts would be ["pom", "xml"], lastPart is "xml"
+    // If "my.classpath", parts would be ["my", "classpath"], lastPart is "classpath"
   }
-  return 'unknown'; // No extension found
+  return 'unknown'; // No recognized extension found
 }
 
 function isSupportedFile(fileName: string): boolean {
   const extension = getFileExtension(fileName);
-  return SUPPORTED_EXTENSIONS.includes(extension);
+  return SUPPORTED_EXTENSIONS.includes(extension) && extension !== 'unknown';
 }
 
 // Processes dropped files/folders to extract relevant files
@@ -69,7 +84,7 @@ export async function processDroppedItems(items: FileSystemFileEntry[]): Promise
             const { path, packageName } = parseFileMeta(filePathForMeta, content, fileType);
             
             project.files.push({
-              id: `${project.id}-${path}-${file.name}`, // More unique file ID
+              id: `${project.id}-${path}-${file.name}-${Math.random()}`, // More unique file ID
               path,
               name: file.name,
               content,
@@ -95,7 +110,7 @@ export async function processDroppedItems(items: FileSystemFileEntry[]): Promise
           const content = await readFileContent(file);
           const { path, packageName } = parseFileMeta(file.name, content, fileType);
           project.files.push({
-            id: `${project.id}-${path}-${file.name}`,
+            id: `${project.id}-${path}-${file.name}-${Math.random()}`,
             path, 
             name: file.name,
             content,
@@ -140,7 +155,7 @@ async function getFilesInDirectory(directory: FileSystemDirectoryEntry): Promise
             const fileEntry = entry as FileSystemFileEntry;
             try {
                 const file = await new Promise<File>((res, rej) => fileEntry.file(res, rej));
-                if (!(file as any).webkitRelativePath) {
+                if (!(file as any).webkitRelativePath) { // Ensure webkitRelativePath exists for path parsing
                     Object.defineProperty(file, 'webkitRelativePath', { 
                         value: entry.fullPath.startsWith('/') ? entry.fullPath.substring(1) : entry.fullPath,
                         writable: true 
@@ -183,31 +198,54 @@ function parseFileMeta(filePath: string, fileContent: string, fileType: string):
   const normalizedPath = filePath.replace(/\\/g, '/');
   const parts = normalizedPath.split('/').filter(p => p !== '' && p !== '.');
   
-  // const fileName = parts.pop() || ''; // Not needed here if filePath is already the full path or name
+  // The path prop in ProcessedFile should be the relative path for display.
+  // For a single file dropped, filePath might just be its name.
+  // For a file in a directory, filePath is like "MyProject/src/com/example/MyClass.java"
+  // We want to keep this relative path.
 
   if (fileType !== JAVA_EXTENSION) {
     return { path: filePath, packageName: OTHER_FILES_PACKAGE_NAME };
   }
 
-  // Attempt to parse package from content first for Java files
   const packageNameFromContent = extractJavaPackageName(fileContent);
   if (packageNameFromContent !== DEFAULT_PACKAGE_NAME) {
       return { path: filePath, packageName: packageNameFromContent };
   }
 
-  // Fallback to deriving package from path if not in content or if it was default
+  // Fallback: Try to derive package name from path if not found in content
+  // This is a heuristic and might not always be correct if folder structure doesn't match package
   const commonSourceRoots = ["src/main/java", "src/test/java", "src"];
-  let packageStartIndex = 0;
-  for (let i = 0; i < parts.length -1 ; i++) { // parts.length -1 to exclude filename itself
+  let packageStartIndex = -1;
+
+  // Iterate backwards to find the deepest common source root
+  for (let i = parts.length - 2; i >= 0; i--) { // -2 to exclude filename
     const currentPathPrefix = parts.slice(0, i + 1).join('/');
-    if (commonSourceRoots.includes(currentPathPrefix.toLowerCase())) {
-      packageStartIndex = i + 1;
+    if (commonSourceRoots.some(root => filePath.toLowerCase().includes(root.toLowerCase() + '/'))) {
+        // Find where the actual package structure might begin after the root
+        const rootPath = commonSourceRoots.find(root => filePath.toLowerCase().includes(root.toLowerCase() + '/'))!;
+        const rootIndexInParts = parts.findIndex(p => rootPath.endsWith(p.toLowerCase())); // simplified
+        if (rootIndexInParts !== -1 && rootIndexInParts < parts.length -1) {
+             packageStartIndex = rootIndexInParts + 1;
+             break;
+        }
     }
   }
-  const packageParts = parts.slice(packageStartIndex, parts.length -1); // Exclude filename
-  const packageNameFromPath = packageParts.join('.') || DEFAULT_PACKAGE_NAME;
   
-  return { path: filePath, packageName: packageNameFromPath };
+  let packageNameFromPath = DEFAULT_PACKAGE_NAME;
+  if (packageStartIndex !== -1 && packageStartIndex < parts.length - 1) {
+      packageNameFromPath = parts.slice(packageStartIndex, parts.length -1).join('.');
+  } else if (parts.length > 1) { // If no common source root found, but there are parent dirs
+      // This is a very basic fallback if no src roots are found.
+      // It might grab parts of the project name if it's like "project/com/mypackage/File.java"
+      // For a simple drop of "com/mypackage/File.java", it would be "com.mypackage"
+      // Check if parts before filename look like package structure
+      const potentialPackageParts = parts.slice(0, parts.length - 1);
+      if (potentialPackageParts.every(p => /^[a-zA-Z_]\w*$/.test(p))) {
+         packageNameFromPath = potentialPackageParts.join('.');
+      }
+  }
+  
+  return { path: filePath, packageName: packageNameFromPath || DEFAULT_PACKAGE_NAME };
 }
 
 export function extractJavaPackageName(content: string): string {
@@ -227,7 +265,8 @@ export function unifyJavaFiles(
     const selectedFiles = project.files.filter(f => f.selected);
     if (selectedFiles.length === 0) continue;
 
-    if (projects.length > 1 || sb.length === 0) { 
+    // Add project header if multiple projects are being unified OR if it's the first project in the output
+    if (isMultiProjectUnification || sb.length === 0) { 
         if (sb.length > 0) sb.push("\n\n"); 
         sb.push(`//############################################################`);
         sb.push(`// PROYECTO: ${project.name}`);
@@ -263,7 +302,7 @@ export function unifyJavaFiles(
             } else {
                 sb.push(`// Archivo (Tipo: ${file.fileType.toUpperCase()}): ${file.name}`);
             }
-            sb.push(`// Path: ${file.path}`); // Path is relative to project root, or just filename for manual
+            sb.push(`// Path: ${file.path}`); 
             sb.push(`//------------------------------------------------------------\n`);
             sb.push(file.content.trim());
             sb.push("\n\n"); 
@@ -277,7 +316,12 @@ export function downloadTextFile(filename: string, text: string) {
   const element = document.createElement('a');
   element.setAttribute('href', 'data:text/plain;charset=utf-8,' + encodeURIComponent(text));
   
-  const safeFilename = filename.replace(/[^a-z0-9_.\-]/gi, '_') || "unificado.txt";
+  let safeFilename = filename.replace(/[^a-z0-9_.\-]/gi, '_');
+  if (!safeFilename.toLowerCase().endsWith(".txt")) {
+      safeFilename += ".txt";
+  }
+  safeFilename = safeFilename || "unificado.txt";
+
   element.setAttribute('download', safeFilename);
   
   element.style.display = 'none';
@@ -286,3 +330,5 @@ export function downloadTextFile(filename: string, text: string) {
   document.body.removeChild(element);
 }
 
+
+    
