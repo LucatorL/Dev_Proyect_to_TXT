@@ -7,6 +7,7 @@ const MAX_TOTAL_FILES = 200; // Max number of files to process to prevent browse
 const SUPPORTED_EXTENSIONS = ['java', 'xml', 'txt', 'properties', 'md', 'sql', 'csv', 'yaml', 'yml', 'pom', 'classpath', 'project', 'dat'];
 const JAVA_EXTENSION = 'java';
 const OTHER_FILES_PACKAGE_NAME = "(Other Project Files)";
+const DEFAULT_PACKAGE_NAME = "(Default Package)";
 
 // Basic function to get project base name
 export function getProjectBaseName(name: string): string {
@@ -20,14 +21,19 @@ export function getProjectBaseName(name: string): string {
   return baseName.length > 0 ? baseName : "UntitledProject";
 }
 
-function getFileExtension(fileName: string): string {
+export function getFileExtension(fileName: string): string {
+  if (!fileName || typeof fileName !== 'string') return 'unknown';
   if (fileName.startsWith('.')) { // Handle hidden files like .classpath or .project
     const potentialExtension = fileName.substring(1);
     if (SUPPORTED_EXTENSIONS.includes(potentialExtension)) {
       return potentialExtension;
     }
   }
-  return fileName.split('.').pop()?.toLowerCase() || 'unknown';
+  const parts = fileName.split('.');
+  if (parts.length > 1) {
+    return parts.pop()?.toLowerCase() || 'unknown';
+  }
+  return 'unknown'; // No extension found
 }
 
 function isSupportedFile(fileName: string): boolean {
@@ -60,7 +66,7 @@ export async function processDroppedItems(items: FileSystemFileEntry[]): Promise
           try {
             const content = await readFileContent(file);
             const filePathForMeta = (file as any).webkitRelativePath || file.name;
-            const { path, packageName } = parseFileMeta(filePathForMeta, fileType);
+            const { path, packageName } = parseFileMeta(filePathForMeta, content, fileType);
             
             project.files.push({
               id: `${project.id}-${path}-${file.name}`, // More unique file ID
@@ -87,7 +93,7 @@ export async function processDroppedItems(items: FileSystemFileEntry[]): Promise
         const fileType = getFileExtension(file.name);
         if (file.size <= MAX_FILE_SIZE && totalFilesProcessed < MAX_TOTAL_FILES) {
           const content = await readFileContent(file);
-          const { path, packageName } = parseFileMeta(file.name, fileType);
+          const { path, packageName } = parseFileMeta(file.name, content, fileType);
           project.files.push({
             id: `${project.id}-${path}-${file.name}`,
             path, 
@@ -169,41 +175,51 @@ function readFileContent(file: File): Promise<string> {
     const reader = new FileReader();
     reader.onload = (event) => resolve(event.target?.result as string);
     reader.onerror = (error) => reject(error);
-    reader.readAsText(file, 'UTF-8'); // Attempt to read as UTF-8, might be problematic for binary .dat
+    reader.readAsText(file, 'UTF-8'); 
   });
 }
 
-function parseFileMeta(filePath: string, fileType: string): { path: string; packageName: string } {
+function parseFileMeta(filePath: string, fileContent: string, fileType: string): { path: string; packageName: string } {
   const normalizedPath = filePath.replace(/\\/g, '/');
   const parts = normalizedPath.split('/').filter(p => p !== '' && p !== '.');
   
-  const fileName = parts.pop() || ''; 
+  // const fileName = parts.pop() || ''; // Not needed here if filePath is already the full path or name
 
   if (fileType !== JAVA_EXTENSION) {
-    // For non-Java files, group them under a special package name
-    // Their path is still the full original relative path.
     return { path: filePath, packageName: OTHER_FILES_PACKAGE_NAME };
   }
 
-  // Java file: attempt to derive package name
+  // Attempt to parse package from content first for Java files
+  const packageNameFromContent = extractJavaPackageName(fileContent);
+  if (packageNameFromContent !== DEFAULT_PACKAGE_NAME) {
+      return { path: filePath, packageName: packageNameFromContent };
+  }
+
+  // Fallback to deriving package from path if not in content or if it was default
   const commonSourceRoots = ["src/main/java", "src/test/java", "src"];
   let packageStartIndex = 0;
-  for (let i = 0; i < parts.length; i++) {
+  for (let i = 0; i < parts.length -1 ; i++) { // parts.length -1 to exclude filename itself
     const currentPathPrefix = parts.slice(0, i + 1).join('/');
     if (commonSourceRoots.includes(currentPathPrefix.toLowerCase())) {
       packageStartIndex = i + 1;
     }
   }
-  const packageParts = parts.slice(packageStartIndex);
-  const packageName = packageParts.join('.') || "(Default Package)";
+  const packageParts = parts.slice(packageStartIndex, parts.length -1); // Exclude filename
+  const packageNameFromPath = packageParts.join('.') || DEFAULT_PACKAGE_NAME;
   
-  return { path: filePath, packageName: packageName };
+  return { path: filePath, packageName: packageNameFromPath };
+}
+
+export function extractJavaPackageName(content: string): string {
+  if (typeof content !== 'string') return DEFAULT_PACKAGE_NAME;
+  const packageMatch = content.match(/^\s*package\s+([a-zA-Z_][\w.]*);/m);
+  return packageMatch && packageMatch[1] ? packageMatch[1] : DEFAULT_PACKAGE_NAME;
 }
 
 
-export function unifyJavaFiles( // Renaming this might be good later if it truly unifies more than Java
+export function unifyJavaFiles( 
   projects: ProjectFile[],
-  isMultiProjectUnification: boolean // This parameter might be less relevant if unification always handles multi-project structure
+  isMultiProjectUnification: boolean 
 ): string {
   const sb: string[] = [];
   
@@ -211,8 +227,7 @@ export function unifyJavaFiles( // Renaming this might be good later if it truly
     const selectedFiles = project.files.filter(f => f.selected);
     if (selectedFiles.length === 0) continue;
 
-    // Add project header if multiple projects are being processed together, or if it's the first one.
-    if (projects.length > 1 || sb.length === 0) { // Always add for the first project if it's the only one as well
+    if (projects.length > 1 || sb.length === 0) { 
         if (sb.length > 0) sb.push("\n\n"); 
         sb.push(`//############################################################`);
         sb.push(`// PROYECTO: ${project.name}`);
@@ -227,10 +242,10 @@ export function unifyJavaFiles( // Renaming this might be good later if it truly
     });
 
     const sortedPackageNames = Array.from(packageMap.keys()).sort((a,b) => {
-        if (a === '(Default Package)') return -1;
-        if (b === '(Default Package)') return 1;
-        if (a === OTHER_FILES_PACKAGE_NAME) return 1; // Put "Other Project Files" last or first? Let's try last among custom packages.
-        if (b === OTHER_FILES_PACKAGE_NAME) return -1;
+        if (a === DEFAULT_PACKAGE_NAME) return -1;
+        if (b === DEFAULT_PACKAGE_NAME) return 1;
+        if (a === OTHER_FILES_PACKAGE_NAME && b !== DEFAULT_PACKAGE_NAME) return 1; 
+        if (b === OTHER_FILES_PACKAGE_NAME && a !== DEFAULT_PACKAGE_NAME) return -1;
         return a.localeCompare(b);
     });
 
@@ -238,7 +253,7 @@ export function unifyJavaFiles( // Renaming this might be good later if it truly
         const filesInPackage = packageMap.get(packageName)!.sort((a,b) => a.name.localeCompare(b.name));
         
         sb.push(`//============================================================`);
-        sb.push(`// Paquete: ${packageName}`); // This will show "(Other Project Files)" as a package
+        sb.push(`// Paquete: ${packageName}`); 
         sb.push(`//============================================================\n`);
 
         for (const file of filesInPackage) {
@@ -248,7 +263,7 @@ export function unifyJavaFiles( // Renaming this might be good later if it truly
             } else {
                 sb.push(`// Archivo (Tipo: ${file.fileType.toUpperCase()}): ${file.name}`);
             }
-            sb.push(`// Path: ${file.path}`);
+            sb.push(`// Path: ${file.path}`); // Path is relative to project root, or just filename for manual
             sb.push(`//------------------------------------------------------------\n`);
             sb.push(file.content.trim());
             sb.push("\n\n"); 
