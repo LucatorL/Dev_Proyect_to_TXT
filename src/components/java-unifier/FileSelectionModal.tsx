@@ -17,10 +17,10 @@ import { Checkbox } from "@/components/ui/checkbox";
 import { ScrollArea } from "@/components/ui/scroll-area";
 import { Textarea } from "@/components/ui/textarea";
 import { Label } from "@/components/ui/label";
-import { Card, CardContent, CardHeader, CardTitle } from '@/components/ui/card';
-import { Separator } from '@/components/ui/separator';
-import { ProcessedFile, ProjectFile, PackageGroup, UnifiedData } from '@/types/java-unifier';
-import { unifyJavaFiles, downloadTextFile, getProjectBaseName } from '@/lib/file-processor';
+// import { Card, CardContent, CardHeader, CardTitle } from '@/components/ui/card';
+// import { Separator } from '@/components/ui/separator';
+import type { ProcessedFile, ProjectFile, PackageGroup, UnifiedData, ProjectGroup } from '@/types/java-unifier';
+import { unifyJavaFiles, getProjectBaseName } from '@/lib/file-processor';
 import { Copy, Download, Eye, CheckSquare, Square, FileText, FileCode, Database, Settings2, Info, ChevronLeft, ChevronRight, PlusCircle } from 'lucide-react';
 import { useToast } from '@/hooks/use-toast';
 import { Tooltip, TooltipContent, TooltipProvider, TooltipTrigger } from '@/components/ui/tooltip';
@@ -37,7 +37,7 @@ interface FileSelectionModalProps {
   showPreview: boolean;
   initialProjectIndex?: number;
   onProjectViewedIndexChange?: (index: number) => void;
-  onManualFileRequested: (fileName: string, content: string) => void; // New prop
+  onManualFileRequested: (fileName: string, content: string, targetProjectId: string | 'new_project') => void;
 }
 
 const getFileIcon = (fileType: string) => {
@@ -74,7 +74,7 @@ export function FileSelectionModal({
   showPreview,
   initialProjectIndex = 0,
   onProjectViewedIndexChange,
-  onManualFileRequested, // New prop
+  onManualFileRequested,
 }: FileSelectionModalProps) {
   const [currentDisplayProjects, setCurrentDisplayProjects] = useState<ProjectFile[]>(projectsToProcess);
   const [unifiedPreview, setUnifiedPreview] = useState("");
@@ -83,7 +83,7 @@ export function FileSelectionModal({
   const [outputFileName, setOutputFileName] = useState("proyecto_unificado.txt");
   const [individualFilePreview, setIndividualFilePreview] = useState<{ name: string, content: string, fileType: string } | null>(null);
   const [currentProjectIndex, setCurrentProjectIndex] = useState(initialProjectIndex);
-  const [isManualAddModalOpen, setIsManualAddModalOpen] = useState(false); // State for the manual add modal
+  const [isManualAddModalOpen, setIsManualAddModalOpen] = useState(false);
 
   useEffect(() => {
     setCurrentDisplayProjects(projectsToProcess);
@@ -200,6 +200,8 @@ export function FileSelectionModal({
   const handleConfirmAndSave = () => {
     let finalOutputFileName: string;
     let finalUnifiedContent: string;
+    let projectsIncludedInUnification: ProjectFile[] = [];
+
 
     if (isMultiProjectMode) {
       const projectsToUnify = currentDisplayProjects.map(p => ({
@@ -213,7 +215,10 @@ export function FileSelectionModal({
       }
       finalUnifiedContent = unifyJavaFiles(projectsToUnify, true);
       finalOutputFileName = (projectsToUnify.length > 1 || !projectsToUnify[0] ? "Proyectos_Unificados" : getProjectBaseName(projectsToUnify[0].name)) + "_unificado.txt";
-      const projectIdsProcessed = projectsToUnify.map(p => p.id);
+      
+      projectsIncludedInUnification = projectsToUnify;
+      const projectIdsProcessed = projectsIncludedInUnification.map(p => p.id);
+
       onMultiProjectProcessed(projectIdsProcessed, { fileName: finalOutputFileName, content: finalUnifiedContent });
     
     } else if (currentDisplayProjects[currentProjectIndex]) {
@@ -226,6 +231,8 @@ export function FileSelectionModal({
       }
       finalUnifiedContent = unifyJavaFiles([{...currentProjectForConfirm, files: selectedFiles}], false);
       finalOutputFileName = getProjectBaseName(currentProjectForConfirm.name) + "_unificado.txt";
+      
+      projectsIncludedInUnification = [currentProjectForConfirm];
       onSingleProjectProcessed(currentProjectForConfirm.id, { fileName: finalOutputFileName, content: finalUnifiedContent });
     } else {
       toast({ title: "Error", description: "No hay proyecto seleccionado para unificar.", variant: "destructive" });
@@ -251,7 +258,7 @@ export function FileSelectionModal({
     return [currentDisplayProjects[currentProjectIndex]];
   }, [currentDisplayProjects, isMultiProjectMode, currentProjectIndex]);
 
-  const organizedData: UnifiedData = useMemo(() => {
+  const organizedData: ProjectGroup[] = useMemo(() => { // Changed type from UnifiedData to ProjectGroup[]
     return projectsForListDisplay.map(project => {
       const packageMap = new Map<string, ProcessedFile[]>();
       project.files.forEach(file => {
@@ -287,9 +294,9 @@ export function FileSelectionModal({
   }, []);
 
   // Handler for ManualAddContentModal submission
-  const handleModalManualContentSubmit = (fileName: string, content: string) => {
-    onManualFileRequested(fileName, content); // Call the prop passed from page.tsx
-    setIsManualAddModalOpen(false); // Close the manual add modal
+  const handleModalManualContentSubmit = (fileName: string, content: string, targetProjectId: string | 'new_project') => {
+    onManualFileRequested(fileName, content, targetProjectId);
+    setIsManualAddModalOpen(false); 
   };
 
 
@@ -297,7 +304,7 @@ export function FileSelectionModal({
   const currentSingleProjectNameForTitle = !isMultiProjectMode && currentDisplayProjects[currentProjectIndex] ? currentDisplayProjects[currentProjectIndex].name : (projectsToProcess[0]?.name || 'Proyecto');
 
   return (
-    <Dialog open={isOpen} onOpenChange={onClose}>
+    <Dialog open={isOpen} onOpenChange={(open) => { if(!open) onClose(); }}>
       <DialogContent className="max-w-4xl h-[90vh] flex flex-col p-0">
         {!isMultiProjectMode && projectsToProcess.length > 1 && (
           <>
@@ -475,9 +482,11 @@ export function FileSelectionModal({
           isOpen={isManualAddModalOpen}
           onClose={() => setIsManualAddModalOpen(false)}
           onAddContent={handleModalManualContentSubmit}
+          existingProjects={projectsForListDisplay}
+          currentProjectNameInSingleView={!isMultiProjectMode && currentDisplayProjects[currentProjectIndex] ? currentDisplayProjects[currentProjectIndex].name : undefined}
+          isMultiProjectMode={isMultiProjectMode}
         />
       )}
     </Dialog>
   );
 }
-

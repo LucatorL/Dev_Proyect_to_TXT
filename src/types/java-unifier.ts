@@ -20,9 +20,9 @@ export interface ProjectFile {
 
 export interface RecentEntry {
   id: string; // Usually same as ProjectFile id
-  name: string; // Name of the project/file
+  name: string; // Name of the project/file, can be descriptive for unifications
   timestamp: number; // Timestamp of last access
-  type: 'folder' | 'file'; // Simplified type, refers to the root dropped item
+  type: 'folder' | 'file'; // Simplified type, refers to the root dropped item or 'unification'
 }
 
 export interface PackageGroup {
@@ -32,6 +32,7 @@ export interface PackageGroup {
 
 export interface ProjectGroup {
   projectName: string;
+  projectActualId: string; // Added to uniquely identify project for checkbox changes
   packages: PackageGroup[];
 }
 
