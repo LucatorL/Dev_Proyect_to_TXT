@@ -8,7 +8,7 @@ import { HeaderControls } from '@/components/java-unifier/HeaderControls';
 import { FileDropzone } from '@/components/java-unifier/FileDropzone';
 import { RecentFilesList } from '@/components/java-unifier/RecentFilesList';
 import { FileSelectionModal } from '@/components/java-unifier/FileSelectionModal';
-import { ManualAddContentModal } from '@/components/java-unifier/ManualAddContentModal';
+// ManualAddContentModal is now handled by FileSelectionModal
 import useLocalStorage from '@/hooks/useLocalStorage';
 import type { ProjectFile, RecentEntry, ProcessedFile } from '@/types/java-unifier';
 import { processDroppedItems, unifyJavaFiles, downloadTextFile, getProjectBaseName, getFileExtension, extractJavaPackageName } from '@/lib/file-processor';
@@ -23,7 +23,7 @@ import {
   AlertDialogTitle,
 } from "@/components/ui/alert-dialog";
 import { Button } from '@/components/ui/button';
-import { Github, PlusCircle } from 'lucide-react';
+import { Github } from 'lucide-react'; // PlusCircle removed
 
 const MAX_RECENTS = 3;
 const APP_VERSION = "0.1.5"; 
@@ -33,7 +33,7 @@ export default function JavaUnifierPage() {
   
   const [processedProjects, setProcessedProjects] = useState<ProjectFile[]>([]);
   const [isSelectionModalOpen, setIsSelectionModalOpen] = useState(false);
-  const [isManualAddModalOpen, setIsManualAddModalOpen] = useState(false);
+  // isManualAddModalOpen state is removed from here
   
   const [isRecentInfoModalOpen, setIsRecentInfoModalOpen] = useState(false);
   const [selectedRecentForInfoModal, setSelectedRecentForInfoModal] = useState<RecentEntry | null>(null);
@@ -140,7 +140,8 @@ export default function JavaUnifierPage() {
     setIsSelectionModalOpen(false); 
   };
 
-  const handleManualContentAdd = (fileName: string, content: string) => {
+  // This function is now called by FileSelectionModal
+  const handleManualContentAddRequested = (fileName: string, content: string) => {
     if (!fileName.trim() || !content.trim()) {
       toast({ title: "Error", description: "El nombre del archivo y el contenido no pueden estar vacíos.", variant: "destructive" });
       return;
@@ -154,35 +155,30 @@ export default function JavaUnifierPage() {
 
     const newFile: ProcessedFile = {
       id: `manual-${Date.now()}-${Math.random()}`,
-      path: fileName, // For manual files, path is just the name
+      path: fileName, 
       name: fileName,
       content,
       packageName,
       fileType,
-      projectName: `Manual: ${fileName}`, // Each manual file is its own "project"
+      projectName: `Manual: ${fileName}`, 
       selected: fileType === 'java',
     };
 
     const newProject: ProjectFile = {
       id: `manual-project-${Date.now()}-${Math.random()}`,
       name: `Manual: ${fileName}`,
-      type: 'file', // Or a new 'manual' type if needed
+      type: 'file', 
       files: [newFile],
       timestamp: Date.now(),
     };
 
     setProcessedProjects(prevProjects => [...prevProjects, newProject]);
-    addRecentEntry(newProject); // Add to recents
-    setIsManualAddModalOpen(false);
-
-    // Open selection modal if it's not already, or ensure it updates
-    if (!isSelectionModalOpen && (processedProjects.length + 1 > 0)) {
-      setCurrentProjectIndexInModal(processedProjects.length); // Point to the new project
-      setIsSelectionModalOpen(true);
-    } else if (isSelectionModalOpen) {
-        // If modal is open, the key change on FileSelectionModal due to processedProjects update should handle re-render
-        // We might want to explicitly set currentProjectIndexInModal if modal is already open
-        setCurrentProjectIndexInModal(processedProjects.length);
+    addRecentEntry(newProject); 
+    
+    // FileSelectionModal is already open, it will re-render with new projects
+    // We might want to focus the newly added project if in single project mode
+    if (!isMultiProjectMode) {
+      setCurrentProjectIndexInModal(processedProjects.length); // This will be length BEFORE adding new project, so it's the index of the new one
     }
      toast({ title: "Archivo Añadido", description: `"${fileName}" añadido manualmente.` });
   };
@@ -202,9 +198,9 @@ export default function JavaUnifierPage() {
       <li>
         Versión 0.1.5
         <ul class="list-disc pl-5 space-y-1 mt-1">
-          <li>Añadida la funcionalidad "Añadir Contenido Manualmente":
+          <li>Funcionalidad "Añadir Contenido Manualmente":
             <ul class="list-disc pl-5">
-              <li>Un nuevo botón permite abrir un modal para pegar contenido y asignarle un nombre de archivo.</li>
+              <li>El botón para añadir contenido manualmente se ha movido al modal de selección de archivos.</li>
               <li>El archivo creado manualmente se añade a la lista de proyectos y puede ser seleccionado para unificación.</li>
               <li>Se intenta determinar el tipo de archivo y el paquete Java (si aplica) a partir del nombre y contenido.</li>
             </ul>
@@ -287,12 +283,7 @@ export default function JavaUnifierPage() {
       />
       <main className="flex-grow container mx-auto px-4 py-8">
         <FileDropzone onFilesProcessed={handleFilesDropped} />
-        <div className="mt-4 text-center">
-            <Button variant="outline" onClick={() => setIsManualAddModalOpen(true)}>
-                <PlusCircle className="mr-2 h-4 w-4" />
-                Añadir Contenido Manualmente
-            </Button>
-        </div>
+        {/* Button for manual add removed from here */}
         <RecentFilesList 
             recents={recents} 
             onSelectRecent={handleSelectRecent}
@@ -311,15 +302,10 @@ export default function JavaUnifierPage() {
           showPreview={isPreviewEnabled}
           initialProjectIndex={currentProjectIndexInModal}
           onProjectViewedIndexChange={setCurrentProjectIndexInModal}
+          onManualFileRequested={handleManualContentAddRequested} // New prop
         />
       )}
-      {isManualAddModalOpen && (
-        <ManualAddContentModal
-          isOpen={isManualAddModalOpen}
-          onClose={() => setIsManualAddModalOpen(false)}
-          onAddContent={handleManualContentAdd}
-        />
-      )}
+      {/* ManualAddContentModal instance removed from here */}
       {selectedRecentForInfoModal && (
          <AlertDialog open={isRecentInfoModalOpen} onOpenChange={setIsRecentInfoModalOpen}>
           <AlertDialogContent>

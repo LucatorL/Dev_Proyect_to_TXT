@@ -21,13 +21,15 @@ import { Card, CardContent, CardHeader, CardTitle } from '@/components/ui/card';
 import { Separator } from '@/components/ui/separator';
 import { ProcessedFile, ProjectFile, PackageGroup, UnifiedData } from '@/types/java-unifier';
 import { unifyJavaFiles, downloadTextFile, getProjectBaseName } from '@/lib/file-processor';
-import { Copy, Download, Eye, CheckSquare, Square, FileText, FileCode, Database, Settings2, Info, ChevronLeft, ChevronRight } from 'lucide-react';
+import { Copy, Download, Eye, CheckSquare, Square, FileText, FileCode, Database, Settings2, Info, ChevronLeft, ChevronRight, PlusCircle } from 'lucide-react';
 import { useToast } from '@/hooks/use-toast';
 import { Tooltip, TooltipContent, TooltipProvider, TooltipTrigger } from '@/components/ui/tooltip';
+import { ManualAddContentModal } from '@/components/java-unifier/ManualAddContentModal';
+
 
 interface FileSelectionModalProps {
   isOpen: boolean;
-  onClose: () => void; // Called when the modal should be closed by X, Esc, or Cancel button
+  onClose: () => void; 
   projectsToProcess: ProjectFile[];
   onSingleProjectProcessed: (projectId: string, downloadData: { fileName: string; content: string }) => void;
   onMultiProjectProcessed: (projectIdsToRemove: string[], downloadData: { fileName: string; content: string }) => void;
@@ -35,6 +37,7 @@ interface FileSelectionModalProps {
   showPreview: boolean;
   initialProjectIndex?: number;
   onProjectViewedIndexChange?: (index: number) => void;
+  onManualFileRequested: (fileName: string, content: string) => void; // New prop
 }
 
 const getFileIcon = (fileType: string) => {
@@ -71,6 +74,7 @@ export function FileSelectionModal({
   showPreview,
   initialProjectIndex = 0,
   onProjectViewedIndexChange,
+  onManualFileRequested, // New prop
 }: FileSelectionModalProps) {
   const [currentDisplayProjects, setCurrentDisplayProjects] = useState<ProjectFile[]>(projectsToProcess);
   const [unifiedPreview, setUnifiedPreview] = useState("");
@@ -79,6 +83,7 @@ export function FileSelectionModal({
   const [outputFileName, setOutputFileName] = useState("proyecto_unificado.txt");
   const [individualFilePreview, setIndividualFilePreview] = useState<{ name: string, content: string, fileType: string } | null>(null);
   const [currentProjectIndex, setCurrentProjectIndex] = useState(initialProjectIndex);
+  const [isManualAddModalOpen, setIsManualAddModalOpen] = useState(false); // State for the manual add modal
 
   useEffect(() => {
     setCurrentDisplayProjects(projectsToProcess);
@@ -281,6 +286,12 @@ export function FileSelectionModal({
     setCurrentProjectIndex(prev => Math.max(0, prev - 1));
   }, []);
 
+  // Handler for ManualAddContentModal submission
+  const handleModalManualContentSubmit = (fileName: string, content: string) => {
+    onManualFileRequested(fileName, content); // Call the prop passed from page.tsx
+    setIsManualAddModalOpen(false); // Close the manual add modal
+  };
+
 
   if (!isOpen || projectsToProcess.length === 0) return null; 
   const currentSingleProjectNameForTitle = !isMultiProjectMode && currentDisplayProjects[currentProjectIndex] ? currentDisplayProjects[currentProjectIndex].name : (projectsToProcess[0]?.name || 'Proyecto');
@@ -384,6 +395,11 @@ export function FileSelectionModal({
                 </div>
               ))}
             </ScrollArea>
+            <div className="pt-2 text-center border-t mt-2">
+                <Button variant="outline" size="sm" onClick={() => setIsManualAddModalOpen(true)}>
+                    <PlusCircle className="mr-2 h-4 w-4" /> Añadir Manualmente
+                </Button>
+            </div>
           </div>
 
           <div className="flex flex-col overflow-hidden">
@@ -453,6 +469,13 @@ export function FileSelectionModal({
                  </DialogFooter>
             </DialogContent>
          </Dialog>
+      )}
+      {isManualAddModalOpen && (
+        <ManualAddContentModal
+          isOpen={isManualAddModalOpen}
+          onClose={() => setIsManualAddModalOpen(false)}
+          onAddContent={handleModalManualContentSubmit}
+        />
       )}
     </Dialog>
   );
