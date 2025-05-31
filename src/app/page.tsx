@@ -22,6 +22,7 @@ import {
   AlertDialogTitle,
 } from "@/components/ui/alert-dialog";
 import { Button } from '@/components/ui/button';
+import { Select, SelectTrigger, SelectValue, SelectContent, SelectItem } from "@/components/ui/select";
 import { Github } from 'lucide-react';
 
 const MAX_RECENTS = 5; // Increased max recents slightly
@@ -39,6 +40,8 @@ export default function JavaUnifierPage() {
   const [isMultiProjectMode, setIsMultiProjectMode] = useState(true); 
   const [isChangelogModalOpen, setIsChangelogModalOpen] = useState(false);
   const [currentProjectIndexInModal, setCurrentProjectIndexInModal] = useState(0);
+  const [language, setLanguage] = useLocalStorage<'en' | 'es'>('java-unifier-language', 'es'); // Default to Spanish
+
 
   const { toast } = useToast();
 
@@ -345,6 +348,20 @@ export default function JavaUnifierPage() {
         appVersion={APP_VERSION}
         onVersionClick={handleVersionClick}
       />
+       {/* Language Selector */}
+      <div className="px-4 pt-4 flex justify-end">
+        <Select value={language} onValueChange={(value: "en" | "es") => setLanguage(value)}>
+          <SelectTrigger className="w-[120px]">
+            <SelectValue placeholder="Select Language" />
+          </SelectTrigger>
+          <SelectContent>
+            <SelectItem value="en">English</SelectItem>
+            <SelectItem value="es">Español</SelectItem>
+          </SelectContent>
+        </Select>
+      </div>
+
+
       <main className="flex-grow container mx-auto px-4 py-8">
         <FileDropzone onFilesProcessed={handleFilesDropped} />
         <RecentFilesList 
@@ -436,7 +453,7 @@ export default function JavaUnifierPage() {
           </a>.
         </span>
         <Button variant="link" asChild className="mt-2 sm:mt-0 text-muted-foreground hover:text-primary">
-          <a href="https://github.com/LucatorL/JavaSourceToTxt/issues" target="_blank" rel="noopener noreferrer">
+          <a href="https://github.com/LucatorL/JavaSourceToTxt-WEB-/issues" target="_blank" rel="noopener noreferrer">
             <Github className="mr-2 h-4 w-4" />
             Reportar un Problema / Sugerencias
           </a>
