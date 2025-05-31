@@ -1,4 +1,3 @@
-
 // components/java-unifier/ManualAddContentModal.tsx
 "use client"
 
@@ -18,14 +17,16 @@ import { Label } from "@/components/ui/label";
 import { Select, SelectContent, SelectItem, SelectTrigger, SelectValue } from "@/components/ui/select";
 import { useToast } from "@/hooks/use-toast";
 import type { ProjectFile } from '@/types/java-unifier';
+import { t, type Language } from '@/lib/translations';
 
 interface ManualAddContentModalProps {
   isOpen: boolean;
   onClose: () => void;
   onAddContent: (fileName: string, content: string, targetProjectId: string | 'new_project') => void;
-  existingProjects: ProjectFile[]; // Projects currently in FileSelectionModal
-  currentProjectNameInSingleView?: string; // Name of the project if in single view mode
+  existingProjects: ProjectFile[]; 
+  currentProjectNameInSingleView?: string; 
   isMultiProjectMode: boolean;
+  currentLanguage: Language;
 }
 
 const NEW_PROJECT_ID_VALUE = 'new_project';
@@ -36,7 +37,8 @@ export function ManualAddContentModal({
   onAddContent, 
   existingProjects,
   currentProjectNameInSingleView,
-  isMultiProjectMode
+  isMultiProjectMode,
+  currentLanguage,
 }: ManualAddContentModalProps) {
   const [fileName, setFileName] = useState("");
   const [content, setContent] = useState("");
@@ -44,10 +46,8 @@ export function ManualAddContentModal({
   const { toast } = useToast();
 
   useEffect(() => {
-    // Reset target project ID when modal opens or existing projects change
     if (isOpen) {
         if (!isMultiProjectMode && existingProjects.length === 1 && existingProjects[0]) {
-            // If single project mode and there is one project, default to adding to it
              setTargetProjectId(existingProjects[0].id);
         } else {
              setTargetProjectId(NEW_PROJECT_ID_VALUE);
@@ -58,21 +58,20 @@ export function ManualAddContentModal({
 
   const handleAdd = () => {
     if (!fileName.trim()) {
-      toast({ title: "Error", description: "El nombre del archivo no puede estar vacío.", variant: "destructive" });
+      toast({ title: t('error', currentLanguage), description: t('fileNameEmptyError', currentLanguage), variant: "destructive" });
       return;
     }
     if (!content.trim()) {
-      toast({ title: "Error", description: "El contenido no puede estar vacío.", variant: "destructive" });
+      toast({ title: t('error', currentLanguage), description: t('contentEmptyError', currentLanguage), variant: "destructive" });
       return;
     }
     if (!fileName.includes('.')) {
-        toast({ title: "Advertencia", description: "El nombre del archivo no parece tener una extensión (ej: .java, .txt).", variant: "default" });
+        toast({ title: t('noExtensionWarning', currentLanguage), description: t('noExtensionWarning', currentLanguage), variant: "default" }); // Title same as description here
     }
 
     onAddContent(fileName, content, targetProjectId);
-    setFileName(""); // Reset for next time, but modal is closed by parent
+    setFileName(""); 
     setContent("");
-    // TargetProjectId will be reset by useEffect on next open
   };
 
   const handleClose = () => {
@@ -84,30 +83,27 @@ export function ManualAddContentModal({
 
   const getSelectOptions = () => {
     if (!isMultiProjectMode && currentProjectNameInSingleView && existingProjects.length > 0 && existingProjects[0]) {
-      // Single project view mode
       return (
         <>
           <SelectItem value={existingProjects[0].id}>
-            Añadir a: {currentProjectNameInSingleView}
+            {t('addToProject', currentLanguage, { projectName: currentProjectNameInSingleView })}
           </SelectItem>
-          <SelectItem value={NEW_PROJECT_ID_VALUE}>Crear como nuevo proyecto</SelectItem>
+          <SelectItem value={NEW_PROJECT_ID_VALUE}>{t('createNewProject', currentLanguage)}</SelectItem>
         </>
       );
     } else if (isMultiProjectMode && existingProjects.length > 0) {
-      // Multi-project view mode
       return (
         <>
-          <SelectItem value={NEW_PROJECT_ID_VALUE}>Crear como nuevo proyecto</SelectItem>
+          <SelectItem value={NEW_PROJECT_ID_VALUE}>{t('createNewProject', currentLanguage)}</SelectItem>
           {existingProjects.map(proj => (
             <SelectItem key={proj.id} value={proj.id}>
-              Añadir a: {proj.name}
+              {t('addToProject', currentLanguage, { projectName: proj.name })}
             </SelectItem>
           ))}
         </>
       );
     }
-    // Default: if no projects or some other edge case, only "Create as new project"
-    return <SelectItem value={NEW_PROJECT_ID_VALUE}>Crear como nuevo proyecto</SelectItem>;
+    return <SelectItem value={NEW_PROJECT_ID_VALUE}>{t('createNewProject', currentLanguage)}</SelectItem>;
   };
 
 
@@ -115,47 +111,47 @@ export function ManualAddContentModal({
     <Dialog open={isOpen} onOpenChange={(open) => { if (!open) handleClose(); }}>
       <DialogContent className="sm:max-w-[600px]">
         <DialogHeader>
-          <DialogTitle>Añadir Contenido Manualmente</DialogTitle>
+          <DialogTitle>{t('addManualContentTitle', currentLanguage)}</DialogTitle>
           <DialogDescription>
-            Pega el contenido, asígnale un nombre (con extensión) y elige dónde añadirlo.
+            {t('addManualContentDescription', currentLanguage)}
           </DialogDescription>
         </DialogHeader>
         <div className="grid gap-4 py-4">
           <div className="grid grid-cols-4 items-center gap-4">
             <Label htmlFor="manual-filename" className="text-right">
-              Nombre Archivo
+              {t('fileNameLabel', currentLanguage)}
             </Label>
             <Input
               id="manual-filename"
               value={fileName}
               onChange={(e) => setFileName(e.target.value)}
-              placeholder="Ej: MiClase.java, config.xml"
+              placeholder={t('fileNamePlaceholder', currentLanguage)}
               className="col-span-3"
             />
           </div>
           <div className="grid grid-cols-4 items-start gap-4">
             <Label htmlFor="manual-content" className="text-right pt-2">
-              Contenido
+              {t('contentLabel', currentLanguage)}
             </Label>
             <Textarea
               id="manual-content"
               value={content}
               onChange={(e) => setContent(e.target.value)}
-              placeholder="Pega aquí el contenido de tu archivo..."
+              placeholder={t('contentPlaceholder', currentLanguage)}
               className="col-span-3 min-h-[200px] font-mono text-xs"
             />
           </div>
           {(isMultiProjectMode || (existingProjects.length > 0 && currentProjectNameInSingleView)) && (
             <div className="grid grid-cols-4 items-center gap-4">
                 <Label htmlFor="manual-target-project" className="text-right">
-                    Destino
+                    {t('destinationLabel', currentLanguage)}
                 </Label>
                 <Select 
                     value={targetProjectId} 
                     onValueChange={(value) => setTargetProjectId(value as string | 'new_project')}
                 >
                     <SelectTrigger className="col-span-3" id="manual-target-project">
-                        <SelectValue placeholder="Seleccionar destino..." />
+                        <SelectValue placeholder={t('selectDestinationPlaceholder', currentLanguage)} />
                     </SelectTrigger>
                     <SelectContent>
                         {getSelectOptions()}
@@ -165,8 +161,8 @@ export function ManualAddContentModal({
           )}
         </div>
         <DialogFooter>
-          <Button variant="outline" onClick={handleClose}>Cancelar</Button>
-          <Button onClick={handleAdd}>Añadir Archivo</Button>
+          <Button variant="outline" onClick={handleClose}>{t('cancel', currentLanguage)}</Button>
+          <Button onClick={handleAdd}>{t('addFile', currentLanguage)}</Button>
         </DialogFooter>
       </DialogContent>
     </Dialog>

@@ -10,7 +10,8 @@ import { RecentFilesList } from '@/components/java-unifier/RecentFilesList';
 import { FileSelectionModal } from '@/components/java-unifier/FileSelectionModal';
 import useLocalStorage from '@/hooks/useLocalStorage';
 import type { ProjectFile, RecentEntry, ProcessedFile } from '@/types/java-unifier';
-import { processDroppedItems, unifyJavaFiles, downloadTextFile, getProjectBaseName, getFileExtension, extractJavaPackageName, OTHER_FILES_PACKAGE_NAME, DEFAULT_PACKAGE_NAME } from '@/lib/file-processor';
+import { processDroppedItems, unifyJavaFiles, downloadTextFile, getProjectBaseName, getFileExtension, extractJavaPackageName, SUPPORTED_EXTENSIONS } from '@/lib/file-processor';
+import { DEFAULT_PACKAGE_NAME_LOGIC, OTHER_FILES_PACKAGE_NAME_LOGIC, t, type Language, translations } from '@/lib/translations';
 import { useToast } from "@/hooks/use-toast";
 import {
   AlertDialog,
@@ -22,14 +23,15 @@ import {
   AlertDialogTitle,
 } from "@/components/ui/alert-dialog";
 import { Button } from '@/components/ui/button';
-import { Select, SelectTrigger, SelectValue, SelectContent, SelectItem } from "@/components/ui/select";
 import { Github } from 'lucide-react';
 
-const MAX_RECENTS = 5; // Increased max recents slightly
+
+const MAX_RECENTS = 5; 
 const APP_VERSION = "0.1.7"; 
 
 export default function JavaUnifierPage() {
   const [recents, setRecents] = useLocalStorage<RecentEntry[]>('java-unifier-recents', []);
+  const [language, setLanguage] = useLocalStorage<Language>('java-unifier-language', 'es');
   
   const [processedProjects, setProcessedProjects] = useState<ProjectFile[]>([]);
   const [isSelectionModalOpen, setIsSelectionModalOpen] = useState(false);
@@ -40,10 +42,13 @@ export default function JavaUnifierPage() {
   const [isMultiProjectMode, setIsMultiProjectMode] = useState(true); 
   const [isChangelogModalOpen, setIsChangelogModalOpen] = useState(false);
   const [currentProjectIndexInModal, setCurrentProjectIndexInModal] = useState(0);
-  const [language, setLanguage] = useLocalStorage<'en' | 'es'>('java-unifier-language', 'es'); // Default to Spanish
-
 
   const { toast } = useToast();
+
+  useEffect(() => {
+    document.documentElement.lang = language;
+    document.title = t('appTitle', language);
+  }, [language]);
 
   useEffect(() => {
     if (isSelectionModalOpen && processedProjects.length === 0) {
@@ -57,7 +62,7 @@ export default function JavaUnifierPage() {
         id: project.id, 
         name: customName || project.name, 
         timestamp: Date.now(), 
-        type: 'type' in project ? project.type : 'folder' // Handle both ProjectFile and RecentEntry like structures
+        type: 'type' in project ? project.type : 'folder' 
       };
       const filteredRecents = prevRecents.filter(r => r.id !== newEntry.id);
       const updatedRecents = [newEntry, ...filteredRecents].slice(0, MAX_RECENTS);
@@ -67,8 +72,8 @@ export default function JavaUnifierPage() {
 
   const removeRecentEntry = useCallback((id: string) => {
     setRecents(prevRecents => prevRecents.filter(r => r.id !== id));
-    toast({ title: "Eliminado", description: "Entrada eliminada del historial." });
-  }, [setRecents, toast]);
+    toast({ title: t('successToastTitle', language), description: t('entryDeletedFromHistoryToast', language) });
+  }, [setRecents, toast, language]);
 
   const handleFilesDropped = async (droppedItems: FileSystemFileEntry[]) => {
     if (droppedItems.length === 0) return;
@@ -77,14 +82,14 @@ export default function JavaUnifierPage() {
       const projects = await processDroppedItems(droppedItems);
       if (projects.length === 0 || projects.every(p => p.files.length === 0)) {
         toast({
-          title: "Sin archivos soportados",
-          description: `No se encontraron archivos soportados (${['java', 'xml', 'pom', 'txt', 'properties', 'md', 'sql', 'csv', 'yaml', 'yml', 'classpath', 'project', 'dat'].join(', ')}) en los elementos proporcionados o no se pudieron procesar.`,
+          title: t('noSupportedFilesFoundToastTitle', language),
+          description: t('noSupportedFilesFoundToastDescription', language, { extensions: SUPPORTED_EXTENSIONS.join(', ') }),
           variant: "default",
         });
         return;
       }
       
-      setProcessedProjects(projects); // Replace current projects
+      setProcessedProjects(projects); 
       
       projects.forEach(proj => {
         if(proj.files.length > 0) addRecentEntry(proj);
@@ -99,8 +104,8 @@ export default function JavaUnifierPage() {
     } catch (error) {
       console.error("Error processing files:", error);
       toast({
-        title: "Error de Procesamiento",
-        description: "Ocurrió un error al procesar los archivos. Revisa la consola para más detalles.",
+        title: t('processingErrorToastTitle', language),
+        description: t('processingErrorToastDescription', language),
         variant: "destructive",
       });
     }
@@ -112,14 +117,20 @@ export default function JavaUnifierPage() {
     if (isMultiProjectMode || processedProjects.length <= 1) {
         setProcessedProjects([]);
     } else {
-        if (processedProjects[currentProjectIndexInModal]) {
-            const projectToRemoveId = processedProjects[currentProjectIndexInModal].id;
-            const updatedProjects = processedProjects.filter(p => p.id !== projectToRemoveId);
-            setProcessedProjects(updatedProjects);
-            setCurrentProjectIndexInModal(prevIndex => Math.max(0, Math.min(prevIndex, updatedProjects.length - 1)));
+      if (processedProjects[currentProjectIndexInModal]) {
+        const projectToRemoveId = processedProjects[currentProjectIndexInModal].id;
+        const updatedProjects = processedProjects.filter(p => p.id !== projectToRemoveId);
+        setProcessedProjects(updatedProjects);
+        
+        if (updatedProjects.length > 0) {
+          setCurrentProjectIndexInModal(prevIndex => Math.max(0, Math.min(prevIndex, updatedProjects.length - 1)));
+          setIsSelectionModalOpen(true); 
         } else {
-            setProcessedProjects([]);
+          setProcessedProjects([]);
         }
+      } else {
+        setProcessedProjects([]); 
+      }
     }
   }, [isMultiProjectMode, processedProjects, currentProjectIndexInModal, setProcessedProjects, setIsSelectionModalOpen, setCurrentProjectIndexInModal]);
 
@@ -133,10 +144,18 @@ export default function JavaUnifierPage() {
 
     const updatedProjects = processedProjects.filter(p => p.id !== projectId);
     setProcessedProjects(updatedProjects); 
+    
     setCurrentProjectIndexInModal(idx => Math.max(0, Math.min(idx, updatedProjects.length - 1)));
-    toast({ title: "Éxito", description: `Proyecto ${getProjectBaseName(downloadData.fileName.replace('_unificado.txt', ''))} procesado y descargado.` });
+    
+    toast({ 
+      title: t('successToastTitle', language), 
+      description: t('projectProcessedAndDownloadedToast', language, { projectName: getProjectBaseName(downloadData.fileName.replace('_unificado.txt', '')) }) 
+    });
+
     if (updatedProjects.length === 0) {
         setIsSelectionModalOpen(false);
+    } else {
+      setIsSelectionModalOpen(true); // Keep modal open if other projects remain
     }
   };
 
@@ -144,42 +163,41 @@ export default function JavaUnifierPage() {
     downloadTextFile(downloadData.fileName, downloadData.content);
 
     const projectsThatWereProcessed = processedProjects.filter(p => projectIdsProcessed.includes(p.id));
-    let recentName = `Unificación de ${projectsThatWereProcessed.length} proyecto(s)`;
+    let recentName = t('unifiedProjectsGenericName', language);
     if (projectsThatWereProcessed.length > 0) {
-        const names = projectsThatWereProcessed.map(p => p.name).slice(0,3); // Max 3 names
-        recentName = `Unificación de: ${names.join(', ')}${projectsThatWereProcessed.length > 3 ? ' y otros...' : ''}`;
-    } else {
-        recentName = getProjectBaseName(downloadData.fileName.replace('_unificado.txt', '')) || "Proyectos Unificados";
+        const names = projectsThatWereProcessed.map(p => p.name).slice(0,3);
+        recentName = `${t('projectUnifiedNamePrefix', language)}${names.join(', ')}${projectsThatWereProcessed.length > 3 ? t('projectUnifiedNameSuffixOthers', language) : ''}`;
+    } else if (downloadData.fileName) {
+        recentName = getProjectBaseName(downloadData.fileName.replace('_unificado.txt', '')) || t('unifiedProjectsGenericName', language);
     }
 
     const unifiedRecentEntry: RecentEntry = {
         id: `unified-${Date.now()}-${Math.random()}`,
         name: recentName,
         timestamp: Date.now(),
-        type: 'folder', // Representing a collection
+        type: 'folder', 
     };
-    addRecentEntry(unifiedRecentEntry, recentName); // Pass custom name
+    addRecentEntry(unifiedRecentEntry, recentName); 
     
     setProcessedProjects(prev => prev.filter(p => !projectIdsProcessed.includes(p.id)));
     
-    toast({ title: "Éxito", description: `Archivo ${downloadData.fileName} descargado.` });
+    toast({ title: t('successToastTitle', language), description: t('fileDownloadedToast', language, { fileName: downloadData.fileName }) });
     setIsSelectionModalOpen(false); 
   };
 
   const handleManualContentAddRequested = (fileName: string, content: string, targetProjectId: string | 'new_project') => {
     if (!fileName.trim() || !content.trim()) {
-      toast({ title: "Error", description: "El nombre del archivo y el contenido no pueden estar vacíos.", variant: "destructive" });
+      toast({ title: t('error', language), description: t('fileNameEmptyError', language), variant: "destructive" });
       return;
     }
 
     const fileType = getFileExtension(fileName);
-    let packageName = fileType === 'java' ? extractJavaPackageName(content) : OTHER_FILES_PACKAGE_NAME;
-    if (packageName === '' && fileType === 'java') packageName = DEFAULT_PACKAGE_NAME;
+    let packageName = fileType === 'java' ? extractJavaPackageName(content) : OTHER_FILES_PACKAGE_NAME_LOGIC;
+    if (packageName === '' && fileType === 'java') packageName = DEFAULT_PACKAGE_NAME_LOGIC;
 
     const uniqueFileId = `manual-file-${Date.now()}-${Math.random()}`;
 
     if (targetProjectId !== 'new_project' && processedProjects.some(p => p.id === targetProjectId)) {
-        // Add to existing project
         setProcessedProjects(prevProjects => 
             prevProjects.map(proj => {
                 if (proj.id === targetProjectId) {
@@ -195,14 +213,13 @@ export default function JavaUnifierPage() {
                     };
                     const updatedProject = { ...proj, files: [...proj.files, newFile], timestamp: Date.now() };
                     addRecentEntry(updatedProject);
-                    toast({ title: "Archivo Añadido", description: `"${fileName}" añadido a ${proj.name}.` });
+                    toast({ title: t('fileAddedToastTitle', language), description: t('fileXAddedToYToast', language, { fileName, projectName: proj.name }) });
                     return updatedProject;
                 }
                 return proj;
             })
         );
     } else {
-        // Create as new project
         const newProjectName = `Manual: ${getProjectBaseName(fileName) || 'Archivo'}`;
         const newFile: ProcessedFile = {
             id: uniqueFileId,
@@ -225,14 +242,13 @@ export default function JavaUnifierPage() {
         setProcessedProjects(prevProjects => [...prevProjects, newProject]);
         addRecentEntry(newProject); 
         
-        if (!isMultiProjectMode && processedProjects.length === 0) { // If adding first project in single mode
-            setCurrentProjectIndexInModal(0);
-        } else if (!isMultiProjectMode) { // if adding to single mode list that already had items
-             // No need to change index if it was a new project, modal will re-render
-        } else if (isMultiProjectMode) { // if adding to multi mode list
-            // Modal will re-render with the new project at the end
+        if (!isSelectionModalOpen || (processedProjects.length === 0 && !isMultiProjectMode)) {
+            setCurrentProjectIndexInModal(processedProjects.length); // Go to new project if modal wasn't open or was empty
+            setIsSelectionModalOpen(true);
+        } else if (!isMultiProjectMode) {
+             setCurrentProjectIndexInModal(processedProjects.length); // Go to the new project
         }
-        toast({ title: "Archivo Añadido", description: `"${fileName}" añadido como nuevo proyecto.` });
+        toast({ title: t('fileAddedToastTitle', language), description: t('fileXAddedAsNewProjectToast', language, { fileName }) });
     }
   };
 
@@ -249,8 +265,10 @@ export default function JavaUnifierPage() {
   const changelogContent = `
     <ul class="list-disc pl-5 space-y-2 text-sm">
        <li>
-        Versión ${APP_VERSION}
+        Versión ${APP_VERSION} (UI Traducida)
         <ul class="list-disc pl-5 space-y-1 mt-1">
+          <li>Internacionalización: Interfaz de usuario ahora disponible en Inglés y Español.</li>
+          <li>Selector de idioma movido a la cabecera.</li>
           <li>Adición Manual de Archivos Mejorada:
             <ul class="list-disc pl-5">
               <li>Al añadir un archivo manualmente desde el modal de selección:
@@ -347,32 +365,22 @@ export default function JavaUnifierPage() {
         onMultiProjectModeToggle={(checked) => setIsMultiProjectMode(!!checked)}
         appVersion={APP_VERSION}
         onVersionClick={handleVersionClick}
+        currentLanguage={language}
+        onLanguageChange={setLanguage}
       />
-       {/* Language Selector */}
-      <div className="px-4 pt-4 flex justify-end">
-        <Select value={language} onValueChange={(value: "en" | "es") => setLanguage(value)}>
-          <SelectTrigger className="w-[120px]">
-            <SelectValue placeholder="Select Language" />
-          </SelectTrigger>
-          <SelectContent>
-            <SelectItem value="en">English</SelectItem>
-            <SelectItem value="es">Español</SelectItem>
-          </SelectContent>
-        </Select>
-      </div>
-
-
+      
       <main className="flex-grow container mx-auto px-4 py-8">
-        <FileDropzone onFilesProcessed={handleFilesDropped} />
+        <FileDropzone onFilesProcessed={handleFilesDropped} currentLanguage={language} />
         <RecentFilesList 
             recents={recents} 
             onSelectRecent={handleSelectRecent}
             onRemoveRecent={removeRecentEntry}
+            currentLanguage={language}
         />
       </main>
       {isSelectionModalOpen && processedProjects.length > 0 && (
         <FileSelectionModal
-          key={processedProjects.map(p => p.id).join('-') + `-${currentProjectIndexInModal}-${isMultiProjectMode}`} 
+          key={processedProjects.map(p => p.id).join('-') + `-${currentProjectIndexInModal}-${isMultiProjectMode}-${language}`} 
           isOpen={isSelectionModalOpen}
           onClose={handleSelectionModalClose} 
           projectsToProcess={processedProjects}
@@ -383,27 +391,28 @@ export default function JavaUnifierPage() {
           initialProjectIndex={currentProjectIndexInModal}
           onProjectViewedIndexChange={setCurrentProjectIndexInModal}
           onManualFileRequested={handleManualContentAddRequested} 
+          currentLanguage={language}
         />
       )}
       {selectedRecentForInfoModal && (
          <AlertDialog open={isRecentInfoModalOpen} onOpenChange={setIsRecentInfoModalOpen}>
           <AlertDialogContent>
             <AlertDialogHeader>
-              <AlertDialogTitle>Información del Historial: "{selectedRecentForInfoModal.name}"</AlertDialogTitle>
+              <AlertDialogTitle>{t('recentInfoModalTitle', language, { recentName: selectedRecentForInfoModal.name })}</AlertDialogTitle>
               <AlertDialogDescription>
-                Este elemento aparece en el "Historial de Procesados" como un recordatorio.
+                {t('recentInfoModalDescription1', language)}
                 <br /><br />
-                Tipo: {selectedRecentForInfoModal.type === 'folder' ? 'Carpeta/Unificación' : 'Archivo Individual'}
+                {t('recentInfoModalType', language, { type: selectedRecentForInfoModal.type === 'folder' ? t('folderUnificationType', language) : t('individualFileType', language) })}
                 <br />
-                Procesado el: {new Date(selectedRecentForInfoModal.timestamp).toLocaleString()}
+                {t('recentInfoModalProcessedOn', language, { timestamp: new Date(selectedRecentForInfoModal.timestamp).toLocaleString(language) })}
                 <br /><br />
-                Debido a las limitaciones de seguridad del navegador, la aplicación no puede recargar automáticamente los archivos desde aquí.
+                {t('recentInfoModalSecurity', language)}
                 <br /><br />
-                Para volver a procesar '{selectedRecentForInfoModal.name}', por favor, arrastra y suelta la carpeta o los archivos correspondientes nuevamente en la zona principal.
+                {t('recentInfoModalReprocess', language, { recentName: selectedRecentForInfoModal.name })}
               </AlertDialogDescription>
             </AlertDialogHeader>
             <AlertDialogFooter>
-              <AlertDialogAction onClick={() => setIsRecentInfoModalOpen(false)}>Entendido</AlertDialogAction>
+              <AlertDialogAction onClick={() => setIsRecentInfoModalOpen(false)}>{t('understood', language)}</AlertDialogAction>
             </AlertDialogFooter>
           </AlertDialogContent>
         </AlertDialog>
@@ -412,29 +421,29 @@ export default function JavaUnifierPage() {
         <AlertDialog open={isChangelogModalOpen} onOpenChange={setIsChangelogModalOpen}>
           <AlertDialogContent className="max-w-lg">
             <AlertDialogHeader>
-              <AlertDialogTitle>Novedades de la Versión {APP_VERSION}</AlertDialogTitle>
+              <AlertDialogTitle>{t('versionNewsTitle', language, { version: APP_VERSION })}</AlertDialogTitle>
               <AlertDialogDescription asChild>
                  <div className="max-h-[60vh] overflow-y-auto pr-2 mt-2" dangerouslySetInnerHTML={{ __html: changelogContent }} />
               </AlertDialogDescription>
             </AlertDialogHeader>
             <AlertDialogFooter>
-              <AlertDialogAction onClick={() => setIsChangelogModalOpen(false)}>Cerrar</AlertDialogAction>
+              <AlertDialogAction onClick={() => setIsChangelogModalOpen(false)}>{t('close', language)}</AlertDialogAction>
             </AlertDialogFooter>
           </AlertDialogContent>
         </AlertDialog>
       )}
       <footer className="text-center p-4 border-t text-sm text-muted-foreground flex flex-col sm:flex-row justify-between items-center">
         <span className="flex items-center">
-          Java Unifier - Adaptado de la&nbsp;
+          {t('footerAdaptedFrom', language)}&nbsp;
           <a
             href="https://github.com/LucatorL/JavaSourceToTxt"
             target="_blank"
             rel="noopener noreferrer"
             className="text-primary hover:underline"
           >
-            aplicación original
+            {t('originalApplicationLinkText', language)}
           </a>
-          &nbsp;de&nbsp;
+          &nbsp;{t('byText', language)}&nbsp;
           <a 
             href="https://github.com/LucatorL" 
             target="_blank" 
@@ -443,22 +452,25 @@ export default function JavaUnifierPage() {
           >
             <Image 
               src="https://github.com/LucatorL.png" 
-              alt="Foto de perfil de Lucas" 
+              alt={t('lucasProfileText', language)}
               width={24} 
               height={24} 
               className="rounded-full mr-1.5 ml-0.5"
               data-ai-hint="github profile"
             />
-            Lucas
+            {t('lucasProfileText', language)}
           </a>.
         </span>
         <Button variant="link" asChild className="mt-2 sm:mt-0 text-muted-foreground hover:text-primary">
           <a href="https://github.com/LucatorL/JavaSourceToTxt-WEB-/issues" target="_blank" rel="noopener noreferrer">
             <Github className="mr-2 h-4 w-4" />
-            Reportar un Problema / Sugerencias
+            {t('reportIssueLinkText', language)}
           </a>
         </Button>
       </footer>
     </div>
   );
 }
+
+
+    

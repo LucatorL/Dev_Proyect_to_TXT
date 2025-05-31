@@ -1,4 +1,3 @@
-
 // components/java-unifier/FileDropzone.tsx
 "use client"
 
@@ -6,17 +5,21 @@ import React, { useCallback, useState, useRef } from 'react';
 import { UploadCloud, FileUp } from 'lucide-react';
 import { Button } from '@/components/ui/button';
 import { useToast } from '@/hooks/use-toast';
+import { t, type Language } from '@/lib/translations';
+import { SUPPORTED_EXTENSIONS } from '@/lib/file-processor';
+
 
 interface FileDropzoneProps {
   onFilesProcessed: (files: FileSystemFileEntry[]) => void;
+  currentLanguage: Language;
 }
 
-// From file-processor.ts, duplicated for client-side check without direct import if not desired
-const SUPPORTED_EXTENSIONS_DROPZONE = ['java', 'xml', 'txt', 'properties', 'md', 'sql', 'csv', 'yaml', 'yml', 'pom', 'classpath', 'project', 'dat'];
+// From file-processor.ts, duplicated for client-side check
+const SUPPORTED_EXTENSIONS_DROPZONE = SUPPORTED_EXTENSIONS;
 
 function isSupportedFileType(fileName: string): boolean {
   let extension = fileName.split('.').pop()?.toLowerCase();
-  if (fileName.startsWith('.') && extension) { // for hidden files like .classpath
+  if (fileName.startsWith('.') && extension) { 
     const potentialExt = fileName.substring(1);
     if (SUPPORTED_EXTENSIONS_DROPZONE.includes(potentialExt)) {
       extension = potentialExt;
@@ -26,7 +29,7 @@ function isSupportedFileType(fileName: string): boolean {
 }
 
 
-export function FileDropzone({ onFilesProcessed }: FileDropzoneProps) {
+export function FileDropzone({ onFilesProcessed, currentLanguage }: FileDropzoneProps) {
   const [isDragging, setIsDragging] = useState(false);
   const fileInputRef = useRef<HTMLInputElement>(null);
   const { toast } = useToast();
@@ -64,20 +67,20 @@ export function FileDropzone({ onFilesProcessed }: FileDropzoneProps) {
             entries.push(entry);
           } else if (entry.isFile && (lowerName.endsWith('.zip') || lowerName.endsWith('.rar'))) {
             toast({
-                title: "Archivo comprimido no soportado directamente",
-                description: `El archivo '${entry.name}' es un ZIP/RAR. Por favor, extráelo primero y luego arrastra la carpeta o los archivos soportados.`,
+                title: t('compressedFileNotSupported', currentLanguage),
+                description: t('compressedFileDescription', currentLanguage, { fileName: entry.name }),
                 variant: "default",
             });
           } else if (entry.isFile) { 
              toast({
-                title: "Archivo no soportado",
-                description: `El archivo '${entry.name}' no es de un tipo soportado y será ignorado. Se aceptan carpetas y archivos ${SUPPORTED_EXTENSIONS_DROPZONE.join(', ')}.`,
+                title: t('unsupportedFile', currentLanguage),
+                description: t('unsupportedFileDescription', currentLanguage, { fileName: entry.name, supportedExtensions: SUPPORTED_EXTENSIONS_DROPZONE.join(', ') }),
                 variant: "default",
             });
           } else { 
              toast({
-                title: "Elemento no soportado",
-                description: `El elemento '${entry.name}' no es una carpeta o un archivo soportado y será ignorado.`,
+                title: t('unsupportedItem', currentLanguage),
+                description: t('unsupportedItemDescription', currentLanguage, { fileName: entry.name}),
                 variant: "default",
             });
           }
@@ -87,7 +90,7 @@ export function FileDropzone({ onFilesProcessed }: FileDropzoneProps) {
         onFilesProcessed(entries);
       }
     }
-  }, [onFilesProcessed, toast]);
+  }, [onFilesProcessed, toast, currentLanguage]);
 
   const handleManualSelect = (e: React.ChangeEvent<HTMLInputElement>) => {
     const files = e.target.files;
@@ -113,8 +116,8 @@ export function FileDropzone({ onFilesProcessed }: FileDropzoneProps) {
         } else if (lowerName.endsWith('.zip') || lowerName.endsWith('.rar')) {
           if (!hasUnsupportedZipRar) {
             toast({
-              title: "Archivos comprimidos no soportados directamente",
-              description: `Uno o más archivos seleccionados son ZIP/RAR. Por favor, extráelos primero y luego selecciona la carpeta o los archivos soportados.`,
+              title: t('compressedFileNotSupported', currentLanguage),
+              description: t('compressedFileDescription', currentLanguage, { fileName: file.name }), // Show first problematic file
               variant: "default",
             });
             hasUnsupportedZipRar = true;
@@ -122,8 +125,8 @@ export function FileDropzone({ onFilesProcessed }: FileDropzoneProps) {
         } else {
           if (!hasOtherUnsupported) {
              toast({
-                title: "Archivos no soportados",
-                description: `Uno o más archivos seleccionados no son de un tipo soportado y serán ignorados. Se aceptan archivos ${SUPPORTED_EXTENSIONS_DROPZONE.join(', ')} o carpetas.`,
+                title: t('unsupportedFile', currentLanguage),
+                description: t('unsupportedFileDescription', currentLanguage, { fileName: file.name, supportedExtensions: SUPPORTED_EXTENSIONS_DROPZONE.join(', ') }),
                 variant: "default",
             });
             hasOtherUnsupported = true;
@@ -135,8 +138,8 @@ export function FileDropzone({ onFilesProcessed }: FileDropzoneProps) {
         onFilesProcessed(entriesForProcessing);
       } else if (fileList.length > 0 && !hasUnsupportedZipRar && !hasOtherUnsupported) {
         toast({
-            title: "Sin archivos válidos",
-            description: "No se seleccionaron archivos de tipos soportados. Por favor, inténtalo de nuevo.",
+            title: t('noValidFilesSelected', currentLanguage),
+            description: t('noValidFilesSelectedDescription', currentLanguage),
             variant: "default",
         });
       }
@@ -166,10 +169,10 @@ export function FileDropzone({ onFilesProcessed }: FileDropzoneProps) {
       >
         <UploadCloud className={`w-16 h-16 mb-4 ${isDragging ? 'text-primary' : 'text-muted-foreground'}`} />
         <p className={`text-lg font-semibold ${isDragging ? 'text-primary' : 'text-foreground'}`}>
-          Arrastra aquí carpetas o archivos soportados
+          {t('dropzoneHint', currentLanguage)}
         </p>
         <p className="text-sm text-muted-foreground">
-          (.java, .xml, .txt, .sql, .dat, pom.xml, etc. Archivos ZIP/RAR deben extraerse primero)
+          {t('dropzoneSubHint', currentLanguage)}
         </p>
         <input
           type="file"
@@ -181,9 +184,8 @@ export function FileDropzone({ onFilesProcessed }: FileDropzoneProps) {
         />
       </div>
       <Button onClick={openFileDialog} className="w-full" variant="outline">
-        <FileUp className="mr-2 h-4 w-4" /> Seleccionar Carpetas o Archivos
+        <FileUp className="mr-2 h-4 w-4" /> {t('selectFoldersOrFiles', currentLanguage)}
       </Button>
     </div>
   );
 }
-
