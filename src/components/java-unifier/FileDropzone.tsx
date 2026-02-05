@@ -106,6 +106,24 @@ export function FileDropzone({ onFilesProcessed, onAddFileManually, currentLangu
       }
     }
   }, [onFilesProcessed, toast, currentLanguage, projectType, handleAddAnyway]);
+  
+  const createFakeFileEntry = (file: File): FileSystemFileEntry => {
+    return {
+        isFile: true,
+        isDirectory: false,
+        name: file.name,
+        fullPath: (file as any).webkitRelativePath || file.name,
+        file: (callback: (f: File) => void) => callback(file),
+        createReader: () => ({} as FileSystemDirectoryReader),
+        getMetadata: () => {}, 
+        moveTo: () => {}, 
+        copyTo: () => {}, 
+        remove: () => {}, 
+        getParent: () => {}, 
+        filesystem: {} as FileSystem,
+    } as FileSystemFileEntry;
+  };
+
 
   const handleManualSelect = useCallback((e: React.ChangeEvent<HTMLInputElement>) => {
     const files = e.target.files;
@@ -114,38 +132,12 @@ export function FileDropzone({ onFilesProcessed, onAddFileManually, currentLangu
     const fileList = Array.from(files);
     const entriesForProcessing: FileSystemFileEntry[] = [];
 
-    const handleAddFileAnyway = async (file: File) => {
-        try {
-            const content = await readFileContent(file);
-            onAddFileManually(file.name, content);
-            toast({
-                title: t('fileAddedToastTitle', currentLanguage),
-                description: t('fileXAddedAsNewProjectToast', currentLanguage, { fileName: file.name }),
-            });
-        } catch (error) {
-            console.error('Error reading file to add anyway:', error);
-            toast({
-                title: t('processingErrorToastTitle', currentLanguage),
-                description: t('processingErrorToastDescriptionShort', currentLanguage, { fileName: file.name }),
-                variant: 'destructive',
-            });
-        }
-    };
-
     for (const file of fileList) {
         const lowerName = file.name.toLowerCase();
+        const fakeEntry = createFakeFileEntry(file);
 
         if (isSupportedFileType(file.name, projectType)) {
-            const entry = {
-                isFile: true,
-                isDirectory: false,
-                name: file.name,
-                fullPath: (file as any).webkitRelativePath || file.name,
-                file: (callback: (f: File) => void) => callback(file),
-                createReader: () => ({} as FileSystemDirectoryReader),
-                getMetadata: () => {}, moveTo: () => {}, copyTo: () => {}, remove: () => {}, getParent: () => {}, filesystem: {} as FileSystem,
-            } as FileSystemFileEntry;
-            entriesForProcessing.push(entry);
+            entriesForProcessing.push(fakeEntry);
         } else if (lowerName.endsWith('.zip') || lowerName.endsWith('.rar')) {
             toast({
                 title: t('compressedFileNotSupported', currentLanguage),
@@ -163,7 +155,7 @@ export function FileDropzone({ onFilesProcessed, onAddFileManually, currentLangu
                 action: (
                     <ToastAction
                         altText={t('addAnywayButton', currentLanguage)}
-                        onClick={() => handleAddFileAnyway(file)}
+                        onClick={() => handleAddAnyway(fakeEntry)}
                     >
                         {t('addAnywayButton', currentLanguage)}
                     </ToastAction>
@@ -179,7 +171,7 @@ export function FileDropzone({ onFilesProcessed, onAddFileManually, currentLangu
     if (fileInputRef.current) {
         fileInputRef.current.value = "";
     }
-  }, [onFilesProcessed, onAddFileManually, toast, currentLanguage, projectType]);
+  }, [onFilesProcessed, handleAddAnyway, toast, currentLanguage, projectType]);
   
   const openFileDialog = () => {
     if (fileInputRef.current) {
