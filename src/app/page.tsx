@@ -253,6 +253,10 @@ export default function DevProjectUnifierPage() {
     }
   };
 
+  const handleAddFileManuallyWrapper = useCallback((fileName: string, content: string) => {
+    handleManualContentAddRequested(fileName, content, 'new_project');
+  }, [language, isMultiProjectMode, processedProjects, isSelectionModalOpen]);
+
 
   const handleSelectRecent = (recent: RecentEntry) => {
     setSelectedRecentForInfoModal(recent);
@@ -317,7 +321,12 @@ export default function DevProjectUnifierPage() {
       />
       
       <main className="flex-grow container mx-auto px-4 py-8">
-        <FileDropzone onFilesProcessed={handleFilesDropped} currentLanguage={language} projectType={projectType} />
+        <FileDropzone 
+          onFilesProcessed={handleFilesDropped} 
+          currentLanguage={language} 
+          projectType={projectType} 
+          onAddFileManually={handleAddFileManuallyWrapper}
+        />
         <RecentFilesList 
             recents={recents} 
             onSelectRecent={handleSelectRecent}

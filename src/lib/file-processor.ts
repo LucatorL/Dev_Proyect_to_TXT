@@ -199,7 +199,7 @@ async function getFilesInDirectory(directory: FileSystemDirectoryEntry): Promise
 }
 
 
-function readFileContent(file: File): Promise<string> {
+export function readFileContent(file: File): Promise<string> {
   return new Promise((resolve, reject) => {
     if (file.size > MAX_FILE_SIZE) {
         reject(new Error(`File ${file.name} is too large (${file.size} bytes). Max size is ${MAX_FILE_SIZE} bytes.`));

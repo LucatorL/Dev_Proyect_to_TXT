@@ -37,6 +37,9 @@ export const translations = {
     unsupportedItemDescription: "Item '{fileName}' is not a folder or a supported file and will be ignored.",
     noValidFilesSelected: "No valid files selected",
     noValidFilesSelectedDescription: "No supported file types were selected for the current project type. Please try again.",
+    unsupportedFileFoundTitle: "Unsupported File",
+    unsupportedFileFoundDescription: "File '{fileName}' is not standard for a '{projectType}' project. Add it anyway?",
+    addAnywayButton: "Add Anyway",
     
     // RecentFilesList
     processedHistory: "Processed History",
@@ -111,6 +114,7 @@ export const translations = {
     noSupportedFilesFoundToastDescription: "No supported files for the '{projectType}' project type were found in the provided items.",
     processingErrorToastTitle: "Processing Error",
     processingErrorToastDescription: "An error occurred while processing the files. Check the console for more details.",
+    processingErrorToastDescriptionShort: "Could not read file {fileName}.",
     successToastTitle: "Success",
     projectProcessedAndDownloadedToast: "Project {projectName} processed and downloaded.",
     fileDownloadedToast: "File {fileName} downloaded.",
@@ -178,6 +182,9 @@ export const translations = {
     unsupportedItemDescription: "El elemento '{fileName}' no es una carpeta o un archivo soportado y será ignorado.",
     noValidFilesSelected: "Sin archivos válidos",
     noValidFilesSelectedDescription: "No se seleccionaron archivos de tipos soportados para el tipo de proyecto actual. Por favor, inténtalo de nuevo.",
+    unsupportedFileFoundTitle: "Archivo No Soportado",
+    unsupportedFileFoundDescription: "El archivo '{fileName}' no es estándar para un proyecto '{projectType}'. ¿Añadir de todas formas?",
+    addAnywayButton: "Añadir Igualmente",
 
     // RecentFilesList
     processedHistory: "Historial de Procesados",
@@ -252,6 +259,7 @@ export const translations = {
     noSupportedFilesFoundToastDescription: "No se encontraron archivos soportados para el tipo de proyecto '{projectType}' en los elementos proporcionados.",
     processingErrorToastTitle: "Error de Procesamiento",
     processingErrorToastDescription: "Ocurrió un error al procesar los archivos. Revisa la consola para más detalles.",
+    processingErrorToastDescriptionShort: "No se pudo leer el archivo {fileName}.",
     successToastTitle: "Éxito",
     projectProcessedAndDownloadedToast: "Proyecto {projectName} procesado y descargado.",
     fileDownloadedToast: "Archivo {fileName} descargado.",

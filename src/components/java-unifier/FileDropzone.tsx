@@ -6,11 +6,13 @@ import { UploadCloud, FileUp } from 'lucide-react';
 import { Button } from '@/components/ui/button';
 import { useToast } from '@/hooks/use-toast';
 import { t, type Language } from '@/lib/translations';
-import { PROJECT_CONFIG, type ProjectType, getFileExtension } from '@/lib/file-processor';
+import { PROJECT_CONFIG, type ProjectType, getFileExtension, readFileContent } from '@/lib/file-processor';
+import { ToastAction } from "@/components/ui/toast";
 
 
 interface FileDropzoneProps {
   onFilesProcessed: (files: FileSystemFileEntry[]) => void;
+  onAddFileManually: (fileName: string, content: string) => void;
   currentLanguage: Language;
   projectType: ProjectType;
 }
@@ -21,10 +23,30 @@ function isSupportedFileType(fileName: string, projectType: ProjectType): boolea
 }
 
 
-export function FileDropzone({ onFilesProcessed, currentLanguage, projectType }: FileDropzoneProps) {
+export function FileDropzone({ onFilesProcessed, onAddFileManually, currentLanguage, projectType }: FileDropzoneProps) {
   const [isDragging, setIsDragging] = useState(false);
   const fileInputRef = useRef<HTMLInputElement>(null);
   const { toast } = useToast();
+
+  const handleAddAnyway = useCallback(async (entry: FileSystemFileEntry) => {
+      if (!entry.isFile) return;
+      try {
+          const file = await new Promise<File>((resolve, reject) => entry.file(resolve, reject));
+          const content = await readFileContent(file);
+          onAddFileManually(file.name, content);
+           toast({
+              title: t('fileAddedToastTitle', currentLanguage),
+              description: t('fileXAddedAsNewProjectToast', currentLanguage, { fileName: file.name })
+           });
+      } catch (error) {
+          console.error("Error reading file to add anyway:", error);
+          toast({
+              title: t('processingErrorToastTitle', currentLanguage),
+              description: t('processingErrorToastDescriptionShort', currentLanguage, { fileName: entry.name }),
+              variant: "destructive",
+          });
+      }
+  }, [onAddFileManually, currentLanguage, toast]);
 
   const handleDragEnter = useCallback((e: React.DragEvent<HTMLDivElement>) => {
     e.preventDefault();
@@ -65,9 +87,10 @@ export function FileDropzone({ onFilesProcessed, currentLanguage, projectType }:
             });
           } else if (entry.isFile) { 
              toast({
-                title: t('unsupportedFile', currentLanguage, { projectType }),
-                description: t('unsupportedFileDescription', currentLanguage, { fileName: entry.name, supportedExtensions: PROJECT_CONFIG[projectType].extensions.join(', ') }),
+                title: t('unsupportedFileFoundTitle', currentLanguage),
+                description: t('unsupportedFileFoundDescription', currentLanguage, { fileName: entry.name, projectType: projectType }),
                 variant: "default",
+                action: <ToastAction altText={t('addAnywayButton', currentLanguage)} onClick={() => handleAddAnyway(entry)}>{t('addAnywayButton', currentLanguage)}</ToastAction>
             });
           } else { 
              toast({
@@ -82,64 +105,82 @@ export function FileDropzone({ onFilesProcessed, currentLanguage, projectType }:
         onFilesProcessed(entries);
       }
     }
-  }, [onFilesProcessed, toast, currentLanguage, projectType]);
+  }, [onFilesProcessed, toast, currentLanguage, projectType, handleAddAnyway]);
 
-  const handleManualSelect = (e: React.ChangeEvent<HTMLInputElement>) => {
+  const handleManualSelect = useCallback((e: React.ChangeEvent<HTMLInputElement>) => {
     const files = e.target.files;
-    if (files && files.length > 0) {
-      const fileList = Array.from(files);
-      let hasUnsupportedZipRar = false;
-      let hasOtherUnsupported = false;
-      const entriesForProcessing: FileSystemFileEntry[] = [];
+    if (!files || files.length === 0) return;
 
-      fileList.forEach(file => {
-        const lowerName = file.name.toLowerCase();
-        if (isSupportedFileType(file.name, projectType)) {
-           const entry = {
-            isFile: true,
-            isDirectory: false,
-            name: file.name,
-            fullPath: (file as any).webkitRelativePath || file.name,
-            file: (callback: (f: File) => void) => callback(file),
-            createReader: () => ({} as FileSystemDirectoryReader), 
-            getMetadata: () => {}, moveTo: () => {}, copyTo: () => {}, remove: () => {}, getParent: () => {}, filesystem: {} as FileSystem,
-          } as FileSystemFileEntry;
-          entriesForProcessing.push(entry);
-        } else if (lowerName.endsWith('.zip') || lowerName.endsWith('.rar')) {
-          if (!hasUnsupportedZipRar) {
+    const fileList = Array.from(files);
+    const entriesForProcessing: FileSystemFileEntry[] = [];
+
+    const handleAddFileAnyway = async (file: File) => {
+        try {
+            const content = await readFileContent(file);
+            onAddFileManually(file.name, content);
             toast({
-              title: t('compressedFileNotSupported', currentLanguage),
-              description: t('compressedFileDescription', currentLanguage, { fileName: file.name }), // Show first problematic file
-              variant: "default",
+                title: t('fileAddedToastTitle', currentLanguage),
+                description: t('fileXAddedAsNewProjectToast', currentLanguage, { fileName: file.name }),
             });
-            hasUnsupportedZipRar = true;
-          }
-        } else {
-          if (!hasOtherUnsupported) {
-             toast({
-                title: t('unsupportedFile', currentLanguage, { projectType }),
-                description: t('unsupportedFileDescription', currentLanguage, { fileName: file.name, supportedExtensions: PROJECT_CONFIG[projectType].extensions.join(', ') }),
-                variant: "default",
+        } catch (error) {
+            console.error('Error reading file to add anyway:', error);
+            toast({
+                title: t('processingErrorToastTitle', currentLanguage),
+                description: t('processingErrorToastDescriptionShort', currentLanguage, { fileName: file.name }),
+                variant: 'destructive',
             });
-            hasOtherUnsupported = true;
-          }
         }
-      });
-      
-      if (entriesForProcessing.length > 0) {
-        onFilesProcessed(entriesForProcessing);
-      } else if (fileList.length > 0 && !hasUnsupportedZipRar && !hasOtherUnsupported) {
-        toast({
-            title: t('noValidFilesSelected', currentLanguage),
-            description: t('noValidFilesSelectedDescription', currentLanguage),
-            variant: "default",
-        });
-      }
+    };
 
-      if(fileInputRef.current) fileInputRef.current.value = "";
+    for (const file of fileList) {
+        const lowerName = file.name.toLowerCase();
+
+        if (isSupportedFileType(file.name, projectType)) {
+            const entry = {
+                isFile: true,
+                isDirectory: false,
+                name: file.name,
+                fullPath: (file as any).webkitRelativePath || file.name,
+                file: (callback: (f: File) => void) => callback(file),
+                createReader: () => ({} as FileSystemDirectoryReader),
+                getMetadata: () => {}, moveTo: () => {}, copyTo: () => {}, remove: () => {}, getParent: () => {}, filesystem: {} as FileSystem,
+            } as FileSystemFileEntry;
+            entriesForProcessing.push(entry);
+        } else if (lowerName.endsWith('.zip') || lowerName.endsWith('.rar')) {
+            toast({
+                title: t('compressedFileNotSupported', currentLanguage),
+                description: t('compressedFileDescription', currentLanguage, { fileName: file.name }),
+                variant: 'default',
+            });
+        } else {
+            toast({
+                title: t('unsupportedFileFoundTitle', currentLanguage),
+                description: t('unsupportedFileFoundDescription', currentLanguage, {
+                    fileName: file.name,
+                    projectType,
+                }),
+                variant: 'default',
+                action: (
+                    <ToastAction
+                        altText={t('addAnywayButton', currentLanguage)}
+                        onClick={() => handleAddFileAnyway(file)}
+                    >
+                        {t('addAnywayButton', currentLanguage)}
+                    </ToastAction>
+                ),
+            });
+        }
     }
-  };
 
+    if (entriesForProcessing.length > 0) {
+        onFilesProcessed(entriesForProcessing);
+    }
+
+    if (fileInputRef.current) {
+        fileInputRef.current.value = "";
+    }
+  }, [onFilesProcessed, onAddFileManually, toast, currentLanguage, projectType]);
+  
   const openFileDialog = () => {
     if (fileInputRef.current) {
       fileInputRef.current.click();
