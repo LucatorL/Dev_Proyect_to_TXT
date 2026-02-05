@@ -81,29 +81,25 @@ export function HeaderControls({
                 </SelectTrigger>
                 <SelectContent>
                     <SelectItem value="java">
-                      <div className="flex items-center justify-between w-full">
-                          <div className="flex items-center gap-2">
-                              {projectTypeIcons['java']}
-                              <span>{t('projectTypeJava', currentLanguage)}</span>
-                          </div>
-                          <TooltipProvider>
-                              <Tooltip delayDuration={100}>
-                                  <TooltipTrigger asChild onClick={(e) => { e.preventDefault(); e.stopPropagation(); }}>
-                                      <Info className="h-4 w-4 text-muted-foreground hover:text-foreground" />
-                                  </TooltipTrigger>
-                                  <TooltipContent className="max-w-md" side="right">
-                                      <ProjectTypeInfoTooltip projectType="java" currentLanguage={currentLanguage} />
-                                  </TooltipContent>
-                              </Tooltip>
-                          </TooltipProvider>
-                      </div>
+                        {projectTypeIcons['java']}
+                        <span className="ml-2">{t('projectTypeJava', currentLanguage)}</span>
+                        <div className="ml-auto pl-2">
+                            <TooltipProvider>
+                                <Tooltip delayDuration={100}>
+                                    <TooltipTrigger asChild onClick={(e) => { e.preventDefault(); e.stopPropagation(); }}>
+                                        <Info className="h-4 w-4 text-muted-foreground hover:text-foreground" />
+                                    </TooltipTrigger>
+                                    <TooltipContent className="max-w-md" side="right">
+                                        <ProjectTypeInfoTooltip projectType="java" currentLanguage={currentLanguage} />
+                                    </TooltipContent>
+                                </Tooltip>
+                            </TooltipProvider>
+                        </div>
                     </SelectItem>
                     <SelectItem value="web">
-                      <div className="flex items-center justify-between w-full">
-                          <div className="flex items-center gap-2">
-                              {projectTypeIcons['web']}
-                              <span>{t('projectTypeWeb', currentLanguage)}</span>
-                          </div>
+                        {projectTypeIcons['web']}
+                        <span className="ml-2">{t('projectTypeWeb', currentLanguage)}</span>
+                        <div className="ml-auto pl-2">
                            <TooltipProvider>
                               <Tooltip delayDuration={100}>
                                   <TooltipTrigger asChild onClick={(e) => { e.preventDefault(); e.stopPropagation(); }}>
@@ -114,14 +110,12 @@ export function HeaderControls({
                                   </TooltipContent>
                               </Tooltip>
                           </TooltipProvider>
-                      </div>
+                        </div>
                     </SelectItem>
                     <SelectItem value="total">
-                      <div className="flex items-center justify-between w-full">
-                          <div className="flex items-center gap-2">
-                              {projectTypeIcons['total']}
-                              <span>{t('projectTypeTotal', currentLanguage)}</span>
-                          </div>
+                        {projectTypeIcons['total']}
+                        <span className="ml-2">{t('projectTypeTotal', currentLanguage)}</span>
+                        <div className="ml-auto pl-2">
                            <TooltipProvider>
                               <Tooltip delayDuration={100}>
                                   <TooltipTrigger asChild onClick={(e) => { e.preventDefault(); e.stopPropagation(); }}>
@@ -132,7 +126,7 @@ export function HeaderControls({
                                   </TooltipContent>
                               </Tooltip>
                           </TooltipProvider>
-                      </div>
+                        </div>
                     </SelectItem>
                 </SelectContent>
             </Select>
