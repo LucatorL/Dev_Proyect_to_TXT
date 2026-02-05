@@ -83,7 +83,7 @@ export function HeaderControls({
                     <SelectItem value="java">
                         {projectTypeIcons['java']}
                         <span className="ml-2">{t('projectTypeJava', currentLanguage)}</span>
-                        <div className="ml-auto pl-2">
+                        <div className="ml-auto">
                             <TooltipProvider>
                                 <Tooltip delayDuration={100}>
                                     <TooltipTrigger asChild onClick={(e) => { e.preventDefault(); e.stopPropagation(); }}>
@@ -99,7 +99,7 @@ export function HeaderControls({
                     <SelectItem value="web">
                         {projectTypeIcons['web']}
                         <span className="ml-2">{t('projectTypeWeb', currentLanguage)}</span>
-                        <div className="ml-auto pl-2">
+                        <div className="ml-auto">
                            <TooltipProvider>
                               <Tooltip delayDuration={100}>
                                   <TooltipTrigger asChild onClick={(e) => { e.preventDefault(); e.stopPropagation(); }}>
@@ -115,7 +115,7 @@ export function HeaderControls({
                     <SelectItem value="total">
                         {projectTypeIcons['total']}
                         <span className="ml-2">{t('projectTypeTotal', currentLanguage)}</span>
-                        <div className="ml-auto pl-2">
+                        <div className="ml-auto">
                            <TooltipProvider>
                               <Tooltip delayDuration={100}>
                                   <TooltipTrigger asChild onClick={(e) => { e.preventDefault(); e.stopPropagation(); }}>
