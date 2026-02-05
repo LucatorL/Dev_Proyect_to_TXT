@@ -22,6 +22,8 @@ export const translations = {
     projectTypeJava: "Java",
     projectTypeWeb: "Web",
     projectTypeTotal: "Total",
+    mainFiles: "Main files",
+    otherFiles: "Other files",
 
     // FileDropzone
     dropzoneHint: "Drag project folders or supported files here",
@@ -161,6 +163,8 @@ export const translations = {
     projectTypeJava: "Java",
     projectTypeWeb: "Web",
     projectTypeTotal: "Total",
+    mainFiles: "Archivos principales",
+    otherFiles: "Otros archivos",
 
     // FileDropzone
     dropzoneHint: "Arrastra aquí carpetas o archivos soportados",
@@ -190,7 +194,7 @@ export const translations = {
     projectPageIndicator: "({currentIndex} de {totalProjects})",
     selectFilesModalDescription: "Selecciona los archivos a incluir. Los archivos primarios para el tipo de proyecto se seleccionan por defecto.",
     projectFiles: "Archivos de Proyectos",
-    filesFromProject: "Archivos de: {projectName}",
+    filesFromProject: "Files from: {projectName}",
     currentProjectFallbackName: "Proyecto Actual",
     previousProject: "Proyecto Anterior",
     nextProject: "Siguiente Proyecto",

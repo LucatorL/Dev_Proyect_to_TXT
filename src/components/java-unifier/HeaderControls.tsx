@@ -1,14 +1,16 @@
 // components/java-unifier/HeaderControls.tsx
 "use client"
 
+import React from 'react';
 import { ThemeToggle } from "./ThemeToggle"
 import { Checkbox } from "@/components/ui/checkbox"
 import { Label } from "@/components/ui/label"
 import { Button } from "@/components/ui/button"
-import { Info } from "lucide-react"
+import { Info, Coffee, Globe, Layers } from "lucide-react"
 import { Select, SelectTrigger, SelectValue, SelectContent, SelectItem } from "@/components/ui/select";
+import { Tooltip, TooltipContent, TooltipProvider, TooltipTrigger } from "@/components/ui/tooltip";
 import type { Language } from "@/lib/translations";
-import type { ProjectType } from "@/lib/file-processor";
+import { PROJECT_CONFIG, type ProjectType } from "@/lib/file-processor";
 import { t } from "@/lib/translations";
 
 interface HeaderControlsProps {
@@ -23,6 +25,33 @@ interface HeaderControlsProps {
   projectType: ProjectType;
   onProjectTypeChange: (type: ProjectType) => void;
 }
+
+const ProjectTypeInfoTooltip = ({ projectType, currentLanguage }: { projectType: ProjectType, currentLanguage: Language }) => {
+    const config = PROJECT_CONFIG[projectType];
+    const mainExtensions = config.defaultSelected;
+    const otherExtensions = config.extensions.filter(ext => !mainExtensions.includes(ext));
+    const projectTypeName = t(`projectType${projectType.charAt(0).toUpperCase() + projectType.slice(1)}`, currentLanguage);
+
+    return (
+        <div className="text-left p-1">
+            <p className="font-bold text-base mb-1">{projectTypeName}</p>
+            <p className="text-sm">
+                <span className="font-semibold">{t('mainFiles', currentLanguage)}:</span> {mainExtensions.map(e => `.${e}`).join(', ')}
+            </p>
+            {otherExtensions.length > 0 && (
+                 <p className="text-sm mt-1">
+                    <span className="font-semibold">{t('otherFiles', currentLanguage)}:</span> <strong>{otherExtensions.map(e => `.${e}`).join(', ')}</strong>
+                 </p>
+            )}
+        </div>
+    );
+};
+
+const projectTypeIcons: Record<ProjectType, React.ReactNode> = {
+    java: <Coffee className="h-4 w-4" />,
+    web: <Globe className="h-4 w-4" />,
+    total: <Layers className="h-4 w-4" />,
+};
 
 export function HeaderControls({
   previewEnabled,
@@ -44,13 +73,67 @@ export function HeaderControls({
               {t('projectType', currentLanguage)}:
             </Label>
             <Select value={projectType} onValueChange={(value: ProjectType) => onProjectTypeChange(value)}>
-                <SelectTrigger id="project-type" className="w-[120px] h-9 text-sm">
-                    <SelectValue placeholder={t('projectType', currentLanguage)} />
+                <SelectTrigger id="project-type" className="w-[150px] h-9 text-sm">
+                    <div className="flex items-center gap-2">
+                      {projectTypeIcons[projectType]}
+                      <span className="truncate">{t(`projectType${projectType.charAt(0).toUpperCase() + projectType.slice(1)}`, currentLanguage)}</span>
+                    </div>
                 </SelectTrigger>
                 <SelectContent>
-                    <SelectItem value="java">{t('projectTypeJava', currentLanguage)}</SelectItem>
-                    <SelectItem value="web">{t('projectTypeWeb', currentLanguage)}</SelectItem>
-                    <SelectItem value="total">{t('projectTypeTotal', currentLanguage)}</SelectItem>
+                    <SelectItem value="java">
+                      <div className="flex items-center justify-between w-full">
+                          <div className="flex items-center gap-2">
+                              {projectTypeIcons['java']}
+                              <span>{t('projectTypeJava', currentLanguage)}</span>
+                          </div>
+                          <TooltipProvider>
+                              <Tooltip delayDuration={100}>
+                                  <TooltipTrigger asChild onClick={(e) => e.preventDefault()}>
+                                      <Info className="h-4 w-4 ml-2 text-muted-foreground hover:text-foreground" />
+                                  </TooltipTrigger>
+                                  <TooltipContent className="max-w-md" side="right">
+                                      <ProjectTypeInfoTooltip projectType="java" currentLanguage={currentLanguage} />
+                                  </TooltipContent>
+                              </Tooltip>
+                          </TooltipProvider>
+                      </div>
+                    </SelectItem>
+                    <SelectItem value="web">
+                      <div className="flex items-center justify-between w-full">
+                          <div className="flex items-center gap-2">
+                              {projectTypeIcons['web']}
+                              <span>{t('projectTypeWeb', currentLanguage)}</span>
+                          </div>
+                           <TooltipProvider>
+                              <Tooltip delayDuration={100}>
+                                  <TooltipTrigger asChild onClick={(e) => e.preventDefault()}>
+                                      <Info className="h-4 w-4 ml-2 text-muted-foreground hover:text-foreground" />
+                                  </TooltipTrigger>
+                                  <TooltipContent className="max-w-md" side="right">
+                                      <ProjectTypeInfoTooltip projectType="web" currentLanguage={currentLanguage} />
+                                  </TooltipContent>
+                              </Tooltip>
+                          </TooltipProvider>
+                      </div>
+                    </SelectItem>
+                    <SelectItem value="total">
+                      <div className="flex items-center justify-between w-full">
+                          <div className="flex items-center gap-2">
+                              {projectTypeIcons['total']}
+                              <span>{t('projectTypeTotal', currentLanguage)}</span>
+                          </div>
+                           <TooltipProvider>
+                              <Tooltip delayDuration={100}>
+                                  <TooltipTrigger asChild onClick={(e) => e.preventDefault()}>
+                                      <Info className="h-4 w-4 ml-2 text-muted-foreground hover:text-foreground" />
+                                  </TooltipTrigger>
+                                  <TooltipContent className="max-w-md" side="right">
+                                      <ProjectTypeInfoTooltip projectType="total" currentLanguage={currentLanguage} />
+                                  </TooltipContent>
+                              </Tooltip>
+                          </TooltipProvider>
+                      </div>
+                    </SelectItem>
                 </SelectContent>
             </Select>
         </div>
