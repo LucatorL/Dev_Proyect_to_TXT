@@ -88,8 +88,8 @@ export function HeaderControls({
                           </div>
                           <TooltipProvider>
                               <Tooltip delayDuration={100}>
-                                  <TooltipTrigger asChild onClick={(e) => e.preventDefault()}>
-                                      <Info className="h-4 w-4 ml-2 text-muted-foreground hover:text-foreground" />
+                                  <TooltipTrigger asChild onClick={(e) => { e.preventDefault(); e.stopPropagation(); }}>
+                                      <Info className="h-4 w-4 text-muted-foreground hover:text-foreground" />
                                   </TooltipTrigger>
                                   <TooltipContent className="max-w-md" side="right">
                                       <ProjectTypeInfoTooltip projectType="java" currentLanguage={currentLanguage} />
@@ -106,8 +106,8 @@ export function HeaderControls({
                           </div>
                            <TooltipProvider>
                               <Tooltip delayDuration={100}>
-                                  <TooltipTrigger asChild onClick={(e) => e.preventDefault()}>
-                                      <Info className="h-4 w-4 ml-2 text-muted-foreground hover:text-foreground" />
+                                  <TooltipTrigger asChild onClick={(e) => { e.preventDefault(); e.stopPropagation(); }}>
+                                      <Info className="h-4 w-4 text-muted-foreground hover:text-foreground" />
                                   </TooltipTrigger>
                                   <TooltipContent className="max-w-md" side="right">
                                       <ProjectTypeInfoTooltip projectType="web" currentLanguage={currentLanguage} />
@@ -124,8 +124,8 @@ export function HeaderControls({
                           </div>
                            <TooltipProvider>
                               <Tooltip delayDuration={100}>
-                                  <TooltipTrigger asChild onClick={(e) => e.preventDefault()}>
-                                      <Info className="h-4 w-4 ml-2 text-muted-foreground hover:text-foreground" />
+                                  <TooltipTrigger asChild onClick={(e) => { e.preventDefault(); e.stopPropagation(); }}>
+                                      <Info className="h-4 w-4 text-muted-foreground hover:text-foreground" />
                                   </TooltipTrigger>
                                   <TooltipContent className="max-w-md" side="right">
                                       <ProjectTypeInfoTooltip projectType="total" currentLanguage={currentLanguage} />
