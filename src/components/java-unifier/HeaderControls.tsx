@@ -81,8 +81,10 @@ export function HeaderControls({
                 </SelectTrigger>
                 <SelectContent>
                     <SelectItem value="java">
-                        {projectTypeIcons['java']}
-                        <span className="ml-2">{t('projectTypeJava', currentLanguage)}</span>
+                        <div className="flex items-center gap-2">
+                           {projectTypeIcons['java']}
+                           <span>{t('projectTypeJava', currentLanguage)}</span>
+                        </div>
                         <div className="ml-auto">
                             <TooltipProvider>
                                 <Tooltip delayDuration={100}>
@@ -97,8 +99,10 @@ export function HeaderControls({
                         </div>
                     </SelectItem>
                     <SelectItem value="web">
-                        {projectTypeIcons['web']}
-                        <span className="ml-2">{t('projectTypeWeb', currentLanguage)}</span>
+                         <div className="flex items-center gap-2">
+                           {projectTypeIcons['web']}
+                           <span>{t('projectTypeWeb', currentLanguage)}</span>
+                        </div>
                         <div className="ml-auto">
                            <TooltipProvider>
                               <Tooltip delayDuration={100}>
@@ -113,8 +117,10 @@ export function HeaderControls({
                         </div>
                     </SelectItem>
                     <SelectItem value="total">
-                        {projectTypeIcons['total']}
-                        <span className="ml-2">{t('projectTypeTotal', currentLanguage)}</span>
+                        <div className="flex items-center gap-2">
+                           {projectTypeIcons['total']}
+                           <span>{t('projectTypeTotal', currentLanguage)}</span>
+                        </div>
                         <div className="ml-auto">
                            <TooltipProvider>
                               <Tooltip delayDuration={100}>
@@ -159,7 +165,9 @@ export function HeaderControls({
       <div className="flex items-center space-x-3">
         <Select value={currentLanguage} onValueChange={(value: Language) => onLanguageChange(value)}>
           <SelectTrigger className="w-[120px] h-9 text-sm">
-            <SelectValue placeholder={t('selectLanguage', currentLanguage)} />
+             <span>
+              {currentLanguage === 'es' ? t('spanish', currentLanguage) : t('english', currentLanguage)}
+            </span>
           </SelectTrigger>
           <SelectContent>
             <SelectItem value="en">{t('english', currentLanguage)}</SelectItem>
