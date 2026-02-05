@@ -27,10 +27,10 @@ export const translations = {
 
     // FileDropzone
     dropzoneHint: "Drag project folders or supported files here",
-    dropzoneSubHint: "Select a project type to see supported files. ZIP/RAR must be extracted first.",
+    dropzoneSubHint: "Select a project type to see supported files. .ZIP files are supported, .RAR must be extracted first.",
     selectFoldersOrFiles: "Select Folders or Files",
-    compressedFileNotSupported: "Compressed file not directly supported",
-    compressedFileDescription: "File '{fileName}' is a ZIP/RAR. Please extract it first and then drag the folder or supported files.",
+    compressedFileNotSupported: "Unsupported Compressed File",
+    compressedRarFileDescription: "File '{fileName}' is a .RAR and is not supported. Please extract it first. .ZIP files are supported.",
     unsupportedFile: "Unsupported File for '{projectType}' type",
     unsupportedFileDescription: "File '{fileName}' is not a supported type for the selected project type and will be ignored. Supported: {supportedExtensions}",
     unsupportedItem: "Unsupported Item",
@@ -172,10 +172,10 @@ export const translations = {
 
     // FileDropzone
     dropzoneHint: "Arrastra aquí carpetas o archivos soportados",
-    dropzoneSubHint: "Selecciona un tipo de proyecto para ver los archivos soportados. ZIP/RAR deben extraerse primero.",
+    dropzoneSubHint: "Selecciona un tipo de proyecto para ver los archivos soportados. Se soportan archivos .ZIP, los .RAR deben extraerse primero.",
     selectFoldersOrFiles: "Seleccionar Carpetas o Archivos",
-    compressedFileNotSupported: "Archivo comprimido no soportado directamente",
-    compressedFileDescription: "El archivo '{fileName}' es un ZIP/RAR. Por favor, extráelo primero y luego arrastra la carpeta o los archivos soportados.",
+    compressedFileNotSupported: "Archivo Comprimido no Soportado",
+    compressedRarFileDescription: "El archivo '{fileName}' es .RAR y no está soportado. Por favor, extráelo primero. Los archivos .ZIP sí están soportados.",
     unsupportedFile: "Archivo no soportado para tipo '{projectType}'",
     unsupportedFileDescription: "El archivo '{fileName}' no es de un tipo soportado para el tipo de proyecto seleccionado y será ignorado. Soportados: {supportedExtensions}",
     unsupportedItem: "Elemento no soportado",

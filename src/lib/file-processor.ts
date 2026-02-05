@@ -1,3 +1,4 @@
+import JSZip from 'jszip';
 import type { ProcessedFile, ProjectFile } from '@/types/java-unifier';
 import { DEFAULT_PACKAGE_NAME_LOGIC, OTHER_FILES_PACKAGE_NAME_LOGIC } from '@/lib/translations';
 
@@ -75,11 +76,100 @@ function isSupportedFile(fileName: string, projectType: ProjectType): boolean {
   return PROJECT_CONFIG[projectType].extensions.includes(extension);
 }
 
+async function _processZipFile(file: File, projectType: ProjectType): Promise<ProjectFile | null> {
+    const projectName = getProjectBaseName(file.name);
+    const project: ProjectFile = {
+        id: `${projectName}-${Date.now()}-${Math.random()}`,
+        name: projectName,
+        type: 'folder', // Treat as folder
+        files: [],
+        timestamp: Date.now(),
+    };
+
+    try {
+        const zip = await JSZip.loadAsync(file);
+        const fileProcessingPromises: Promise<ProcessedFile | null>[] = [];
+
+        zip.forEach((relativePath, zipEntry) => {
+            if (!zipEntry.dir) {
+                const fileName = zipEntry.name.split('/').pop() || zipEntry.name;
+                
+                if (isSupportedFile(fileName, projectType)) {
+                    const promise = (async () => {
+                        try {
+                            const content = await zipEntry.async('string');
+                            
+                            if (new Blob([content]).size > MAX_FILE_SIZE) {
+                                console.warn(`File ${fileName} in zip exceeds size limit and was skipped.`);
+                                return null;
+                            }
+
+                            const fileType = getFileExtension(fileName);
+                            const { path, packageName } = parseFileMeta(zipEntry.name, content, fileType, projectType);
+
+                            const processedFile: ProcessedFile = {
+                                id: `${project.id}-${path}-${fileName}-${Math.random()}`,
+                                path: path,
+                                name: fileName,
+                                content: content,
+                                packageName: packageName,
+                                fileType: fileType,
+                                projectName: project.name,
+                                selected: PROJECT_CONFIG[projectType].defaultSelected.includes(fileType),
+                            };
+                            return processedFile;
+                        } catch (readError) {
+                            console.warn(`Could not read file ${fileName} from zip:`, readError);
+                            return null;
+                        }
+                    })();
+                    fileProcessingPromises.push(promise);
+                }
+            }
+        });
+
+        const allFiles = (await Promise.all(fileProcessingPromises)).filter((f): f is ProcessedFile => f !== null);
+        
+        project.files.push(...allFiles);
+
+        if (project.files.length > 0) {
+            return project;
+        }
+
+    } catch (e) {
+        console.error(`Failed to process zip file ${file.name}: `, e);
+    }
+
+    return null;
+}
+
+
 export async function processDroppedItems(items: FileSystemFileEntry[], projectType: ProjectType): Promise<ProjectFile[]> {
   const projects: ProjectFile[] = [];
   let totalFilesProcessed = 0;
 
   for (const item of items) {
+    if (totalFilesProcessed >= MAX_TOTAL_FILES) {
+        console.warn(`Reached maximum file processing limit (${MAX_TOTAL_FILES}). Some files may not have been processed.`);
+        break;
+    }
+
+    const isZipFile = item.name.toLowerCase().endsWith('.zip');
+    if (isZipFile && item.isFile) {
+        try {
+            const file = await new Promise<File>((resolve, reject) => (item as FileSystemFileEntry).file(resolve, reject));
+            const zipProject = await _processZipFile(file, projectType);
+            if(zipProject && zipProject.files.length > 0) {
+                projects.push(zipProject);
+                totalFilesProcessed += zipProject.files.length;
+            }
+        } catch (e) {
+            console.error(`Error processing dropped zip item ${item.name}:`, e);
+        }
+        continue; // Move to next item
+    }
+
+
     const projectName = getProjectBaseName(item.name);
     const project: ProjectFile = {
       id: `${projectName}-${Date.now()}-${Math.random()}`,
@@ -148,10 +238,6 @@ export async function processDroppedItems(items: FileSystemFileEntry[], projectT
     
     if (project.files.length > 0) {
       projects.push(project);
-    }
-    if (totalFilesProcessed >= MAX_TOTAL_FILES) {
-        console.warn(`Reached maximum file processing limit (${MAX_TOTAL_FILES}). Some files may not have been processed.`);
-        break;
     }
   }
   return projects;

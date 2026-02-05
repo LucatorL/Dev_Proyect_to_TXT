@@ -77,12 +77,12 @@ export function FileDropzone({ onFilesProcessed, onAddFileManually, currentLangu
         const entry = items[i].webkitGetAsEntry();
         if (entry) {
           const lowerName = entry.name.toLowerCase();
-          if (entry.isDirectory || (entry.isFile && isSupportedFileType(entry.name, projectType))) {
+          if (entry.isDirectory || (entry.isFile && (isSupportedFileType(entry.name, projectType) || lowerName.endsWith('.zip')))) {
             entries.push(entry);
-          } else if (entry.isFile && (lowerName.endsWith('.zip') || lowerName.endsWith('.rar'))) {
-            toast({
+          } else if (entry.isFile && lowerName.endsWith('.rar')) {
+             toast({
                 title: t('compressedFileNotSupported', currentLanguage),
-                description: t('compressedFileDescription', currentLanguage, { fileName: entry.name }),
+                description: t('compressedRarFileDescription', currentLanguage, { fileName: entry.name }),
                 variant: "default",
             });
           } else if (entry.isFile) { 
@@ -136,12 +136,12 @@ export function FileDropzone({ onFilesProcessed, onAddFileManually, currentLangu
         const lowerName = file.name.toLowerCase();
         const fakeEntry = createFakeFileEntry(file);
 
-        if (isSupportedFileType(file.name, projectType)) {
+        if (isSupportedFileType(file.name, projectType) || lowerName.endsWith('.zip')) {
             entriesForProcessing.push(fakeEntry);
-        } else if (lowerName.endsWith('.zip') || lowerName.endsWith('.rar')) {
+        } else if (lowerName.endsWith('.rar')) {
             toast({
                 title: t('compressedFileNotSupported', currentLanguage),
-                description: t('compressedFileDescription', currentLanguage, { fileName: file.name }),
+                description: t('compressedRarFileDescription', currentLanguage, { fileName: file.name }),
                 variant: 'default',
             });
         } else {
