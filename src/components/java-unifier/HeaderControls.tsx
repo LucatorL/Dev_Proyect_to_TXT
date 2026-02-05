@@ -8,6 +8,7 @@ import { Button } from "@/components/ui/button"
 import { Info } from "lucide-react"
 import { Select, SelectTrigger, SelectValue, SelectContent, SelectItem } from "@/components/ui/select";
 import type { Language } from "@/lib/translations";
+import type { ProjectType } from "@/lib/file-processor";
 import { t } from "@/lib/translations";
 
 interface HeaderControlsProps {
@@ -19,6 +20,8 @@ interface HeaderControlsProps {
   onVersionClick?: () => void;
   currentLanguage: Language;
   onLanguageChange: (lang: Language) => void;
+  projectType: ProjectType;
+  onProjectTypeChange: (type: ProjectType) => void;
 }
 
 export function HeaderControls({
@@ -30,10 +33,27 @@ export function HeaderControls({
   onVersionClick,
   currentLanguage,
   onLanguageChange,
+  projectType,
+  onProjectTypeChange
 }: HeaderControlsProps) {
   return (
-    <div className="flex items-center justify-between p-4 border-b gap-4">
-      <div className="flex items-center space-x-4 flex-wrap">
+    <header className="flex items-center justify-between p-4 border-b gap-4 flex-wrap">
+       <div className="flex items-center space-x-4 flex-wrap gap-y-2">
+         <div className="flex items-center space-x-2">
+            <Label htmlFor="project-type" className="text-sm font-medium whitespace-nowrap">
+              {t('projectType', currentLanguage)}:
+            </Label>
+            <Select value={projectType} onValueChange={(value: ProjectType) => onProjectTypeChange(value)}>
+                <SelectTrigger id="project-type" className="w-[120px] h-9 text-sm">
+                    <SelectValue placeholder={t('projectType', currentLanguage)} />
+                </SelectTrigger>
+                <SelectContent>
+                    <SelectItem value="java">{t('projectTypeJava', currentLanguage)}</SelectItem>
+                    <SelectItem value="web">{t('projectTypeWeb', currentLanguage)}</SelectItem>
+                    <SelectItem value="total">{t('projectTypeTotal', currentLanguage)}</SelectItem>
+                </SelectContent>
+            </Select>
+        </div>
         <div className="flex items-center space-x-2">
           <Checkbox
             id="preview-enabled"
@@ -81,13 +101,8 @@ export function HeaderControls({
             <Info className="ml-1.5 h-3.5 w-3.5" />
           </Button>
         )}
-        {appVersion && !onVersionClick && (
-           <span className="text-sm font-medium px-2.5 py-1.5 rounded-md border border-border bg-secondary text-secondary-foreground select-none">
-            {t('appVersion', currentLanguage, { version: appVersion })}
-          </span>
-        )}
         <ThemeToggle />
       </div>
-    </div>
+    </header>
   )
 }

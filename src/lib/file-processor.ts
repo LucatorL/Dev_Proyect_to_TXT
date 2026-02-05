@@ -1,12 +1,30 @@
 import type { ProcessedFile, ProjectFile } from '@/types/java-unifier';
-import { DEFAULT_PACKAGE_NAME_LOGIC, OTHER_FILES_PACKAGE_NAME_LOGIC } from '@/lib/translations'; // Import logic constants
+import { DEFAULT_PACKAGE_NAME_LOGIC, OTHER_FILES_PACKAGE_NAME_LOGIC } from '@/lib/translations';
 
-const MAX_FILE_SIZE = 1024 * 1024 * 5; // 5MB limit per file for client-side processing
-const MAX_TOTAL_FILES = 200; // Max number of files to process to prevent browser freeze
+const MAX_FILE_SIZE = 1024 * 1024 * 5; // 5MB limit per file
+const MAX_TOTAL_FILES = 250; // Max number of files to process
 
-export const SUPPORTED_EXTENSIONS = ['java', 'xml', 'txt', 'properties', 'md', 'sql', 'csv', 'yaml', 'yml', 'pom', 'classpath', 'project', 'dat'];
+export const PROJECT_CONFIG = {
+  java: {
+    extensions: ['java', 'xml', 'properties', 'pom', 'gradle', 'kt', 'kts', 'sql', 'classpath', 'project'],
+    defaultSelected: ['java', 'kt', 'xml', 'gradle', 'pom']
+  },
+  web: {
+    extensions: ['html', 'css', 'scss', 'less', 'js', 'ts', 'jsx', 'tsx', 'json', 'md', 'svg', 'vue', 'svelte', 'yaml', 'yml', 'env', 'mjs', 'cjs', 'dockerfile', 'gitignore', 'package.json', 'tsconfig.json'],
+    defaultSelected: ['html', 'css', 'scss', 'js', 'ts', 'jsx', 'tsx', 'vue', 'svelte']
+  },
+  total: {
+    extensions: ['java', 'xml', 'properties', 'pom', 'gradle', 'kt', 'kts', 'sql', 'html', 'css', 'scss', 'less', 'js', 'ts', 'jsx', 'tsx', 'json', 'md', 'svg', 'vue', 'svelte', 'yaml', 'yml', 'env', 'mjs', 'cjs', 'dockerfile', 'gitignore', 'package.json', 'tsconfig.json', 'txt', 'csv', 'dat', 'classpath', 'project', 'py', 'rb', 'php', 'sh', 'bat'],
+    defaultSelected: ['java', 'kt', 'js', 'ts', 'jsx', 'tsx', 'py', 'html', 'css', 'sql', 'json', 'md']
+  }
+};
+export type ProjectType = keyof typeof PROJECT_CONFIG;
+
+// A flat list of all supported extensions across all project types
+export const ALL_SUPPORTED_EXTENSIONS = [...new Set(Object.values(PROJECT_CONFIG).flatMap(config => config.extensions))];
+
 const JAVA_EXTENSION = 'java';
-// Removed export const OTHER_FILES_PACKAGE_NAME and DEFAULT_PACKAGE_NAME, using imported _LOGIC constants instead for internal logic
+
 
 export function getProjectBaseName(name: string): string {
   if (!name) return "UntitledProject";
@@ -22,34 +40,42 @@ export function getProjectBaseName(name: string): string {
 }
 
 export function getFileExtension(fileName: string): string {
-  if (!fileName || typeof fileName !== 'string') return 'unknown';
-  
-  if (fileName.startsWith('.')) { 
-    const potentialExtension = fileName.substring(1);
-    if (SUPPORTED_EXTENSIONS.includes(potentialExtension)) {
-      return potentialExtension;
-    }
-  }
-  if (fileName.toLowerCase() === 'pom.xml') {
-    return 'pom';
-  }
+    if (!fileName || typeof fileName !== 'string') return 'unknown';
 
-  const parts = fileName.split('.');
-  if (parts.length > 1) {
-    const lastPart = parts.pop()?.toLowerCase();
-    if (lastPart && SUPPORTED_EXTENSIONS.includes(lastPart)) {
-      return lastPart;
+    // Handle special full filenames first
+    const lowerFileName = fileName.toLowerCase();
+    if (lowerFileName.endsWith('package.json')) return 'package.json';
+    if (lowerFileName.endsWith('tsconfig.json')) return 'tsconfig.json';
+    if (lowerFileName.endsWith('.gitignore')) return 'gitignore';
+    if (lowerFileName.endsWith('dockerfile')) return 'dockerfile';
+
+    if (fileName.startsWith('.')) { 
+        const potentialExtension = fileName.substring(1).toLowerCase();
+        if (ALL_SUPPORTED_EXTENSIONS.includes(potentialExtension)) {
+            return potentialExtension;
+        }
     }
-  }
-  return 'unknown';
+    if (lowerFileName === 'pom.xml') return 'pom';
+    if (lowerFileName.endsWith('.gradle')) return 'gradle';
+
+
+    const parts = fileName.split('.');
+    if (parts.length > 1) {
+        const lastPart = parts.pop()?.toLowerCase();
+        if (lastPart && ALL_SUPPORTED_EXTENSIONS.includes(lastPart)) {
+            return lastPart;
+        }
+    }
+    return 'unknown';
 }
 
-function isSupportedFile(fileName: string): boolean {
+
+function isSupportedFile(fileName: string, projectType: ProjectType): boolean {
   const extension = getFileExtension(fileName);
-  return SUPPORTED_EXTENSIONS.includes(extension) && extension !== 'unknown';
+  return PROJECT_CONFIG[projectType].extensions.includes(extension);
 }
 
-export async function processDroppedItems(items: FileSystemFileEntry[]): Promise<ProjectFile[]> {
+export async function processDroppedItems(items: FileSystemFileEntry[], projectType: ProjectType): Promise<ProjectFile[]> {
   const projects: ProjectFile[] = [];
   let totalFilesProcessed = 0;
 
@@ -69,47 +95,47 @@ export async function processDroppedItems(items: FileSystemFileEntry[]): Promise
         if (totalFilesProcessed >= MAX_TOTAL_FILES) break;
         
         const fileType = getFileExtension(file.name);
-        if (isSupportedFile(file.name) && file.size <= MAX_FILE_SIZE) {
+        if (isSupportedFile(file.name, projectType) && file.size <= MAX_FILE_SIZE) {
           try {
             const content = await readFileContent(file);
             const filePathForMeta = (file as any).webkitRelativePath || file.name;
-            const { path, packageName } = parseFileMeta(filePathForMeta, content, fileType);
+            const { path, packageName } = parseFileMeta(filePathForMeta, content, fileType, projectType);
             
             project.files.push({
               id: `${project.id}-${path}-${file.name}-${Math.random()}`, 
               path,
               name: file.name,
               content,
-              packageName, // This will be one of the _LOGIC constants or a real package
+              packageName,
               fileType,
               projectName: project.name,
-              selected: fileType === JAVA_EXTENSION, 
+              selected: PROJECT_CONFIG[projectType].defaultSelected.includes(fileType),
             });
             totalFilesProcessed++;
           } catch (error) {
             console.warn(`Could not read file ${file.name}:`, error);
           }
-        } else if (isSupportedFile(file.name) && file.size > MAX_FILE_SIZE) {
+        } else if (isSupportedFile(file.name, projectType) && file.size > MAX_FILE_SIZE) {
             console.warn(`File ${file.name} exceeds size limit (${MAX_FILE_SIZE} bytes) and was skipped.`);
         }
       }
-    } else if (item.isFile && isSupportedFile(item.name)) {
+    } else if (item.isFile && isSupportedFile(item.name, projectType)) {
       const filePromise = new Promise<File>((resolve, reject) => (item as FileSystemFileEntry).file(resolve, reject));
       try {
         const file = await filePromise;
         const fileType = getFileExtension(file.name);
         if (file.size <= MAX_FILE_SIZE && totalFilesProcessed < MAX_TOTAL_FILES) {
           const content = await readFileContent(file);
-          const { path, packageName } = parseFileMeta(file.name, content, fileType);
+          const { path, packageName } = parseFileMeta(file.name, content, fileType, projectType);
           project.files.push({
             id: `${project.id}-${path}-${file.name}-${Math.random()}`,
             path, 
             name: file.name,
             content,
-            packageName, // This will be one of the _LOGIC constants or a real package
+            packageName,
             fileType,
             projectName: project.name,
-            selected: fileType === JAVA_EXTENSION,
+            selected: PROJECT_CONFIG[projectType].defaultSelected.includes(fileType),
           });
           totalFilesProcessed++;
         } else if (file.size > MAX_FILE_SIZE) {
@@ -186,20 +212,29 @@ function readFileContent(file: File): Promise<string> {
   });
 }
 
-function parseFileMeta(filePath: string, fileContent: string, fileType: string): { path: string; packageName: string } {
+function parseFileMeta(filePath: string, fileContent: string, fileType: string, projectType: ProjectType): { path: string; packageName: string } {
   const normalizedPath = filePath.replace(/\\/g, '/');
-  // const parts = normalizedPath.split('/').filter(p => p !== '' && p !== '.'); // Not used anymore with this logic
   
-  if (fileType !== JAVA_EXTENSION) {
-    return { path: filePath, packageName: OTHER_FILES_PACKAGE_NAME_LOGIC };
+  if (projectType === 'java' && fileType === JAVA_EXTENSION) {
+    const packageNameFromContent = extractJavaPackageName(fileContent);
+    return { path: filePath, packageName: packageNameFromContent };
+  }
+  
+  if (projectType === 'web' || projectType === 'total') {
+    const pathParts = normalizedPath.split('/');
+    if (pathParts.length > 1) {
+        pathParts.pop(); // remove filename
+        const dirPath = pathParts.join('/');
+        if (dirPath) {
+            return { path: filePath, packageName: dirPath };
+        }
+    }
   }
 
-  const packageNameFromContent = extractJavaPackageName(fileContent); // This already returns DEFAULT_PACKAGE_NAME_LOGIC if not found
-  
-  // The packageNameFromContent will be either a real package or DEFAULT_PACKAGE_NAME_LOGIC.
-  // No need for complex path parsing for package name here if content parsing is primary.
-  return { path: filePath, packageName: packageNameFromContent };
+  // Fallback for root files or other cases
+  return { path: filePath, packageName: OTHER_FILES_PACKAGE_NAME_LOGIC };
 }
+
 
 export function extractJavaPackageName(content: string): string {
   if (typeof content !== 'string') return DEFAULT_PACKAGE_NAME_LOGIC;
@@ -207,9 +242,7 @@ export function extractJavaPackageName(content: string): string {
   return packageMatch && packageMatch[1] ? packageMatch[1] : DEFAULT_PACKAGE_NAME_LOGIC;
 }
 
-// Unified file comments will remain in Spanish as per the note.
-// If these comments also need to be translated, this function would need the 'language' or 't' function.
-export function unifyJavaFiles( 
+export function unifyProjectFiles( 
   projects: ProjectFile[],
   isMultiProjectUnification: boolean 
 ): string {
@@ -226,15 +259,14 @@ export function unifyJavaFiles(
         sb.push(`//############################################################\n`);
     }
     
-    const packageMap = new Map<string, ProcessedFile[]>();
+    const groupMap = new Map<string, ProcessedFile[]>();
     selectedFiles.forEach(file => {
-        const list = packageMap.get(file.packageName) || []; // packageName is now a _LOGIC constant or real package
+        const list = groupMap.get(file.packageName) || [];
         list.push(file);
-        packageMap.set(file.packageName, list);
+        groupMap.set(file.packageName, list);
     });
 
-    const sortedPackageNames = Array.from(packageMap.keys()).sort((a,b) => {
-        // Sort using the _LOGIC constants
+    const sortedGroupNames = Array.from(groupMap.keys()).sort((a,b) => {
         if (a === DEFAULT_PACKAGE_NAME_LOGIC) return -1;
         if (b === DEFAULT_PACKAGE_NAME_LOGIC) return 1;
         if (a === OTHER_FILES_PACKAGE_NAME_LOGIC && b !== DEFAULT_PACKAGE_NAME_LOGIC) return 1; 
@@ -242,27 +274,23 @@ export function unifyJavaFiles(
         return a.localeCompare(b);
     });
 
-    for (const packageName of sortedPackageNames) {
-        const filesInPackage = packageMap.get(packageName)!.sort((a,b) => a.name.localeCompare(b.name));
+    for (const groupName of sortedGroupNames) {
+        const filesInGroup = groupMap.get(groupName)!.sort((a,b) => a.name.localeCompare(b.name));
         
-        // For display in generated file, we use the package name directly (which could be a logic constant)
-        // Or, if we wanted this part translated:
-        // let displayPkgName = packageName;
-        // if (packageName === DEFAULT_PACKAGE_NAME_LOGIC) displayPkgName = t('defaultPackageNameDisplay', lang);
-        // else if (packageName === OTHER_FILES_PACKAGE_NAME_LOGIC) displayPkgName = t('otherFilesPackageNameDisplay', lang);
-        // For now, using the packageName as is (which will be the English constants from _LOGIC or a real package name)
+        let groupTitle = "Grupo";
+        if (groupName.includes('.') && !groupName.includes('/')) {
+            groupTitle = "Paquete";
+        } else if (groupName.includes('/')) {
+            groupTitle = "Directorio";
+        }
 
         sb.push(`//============================================================`);
-        sb.push(`// Paquete: ${packageName}`); // Stays Spanish, uses logic constant or actual package
+        sb.push(`// ${groupTitle}: ${groupName}`);
         sb.push(`//============================================================\n`);
 
-        for (const file of filesInPackage) {
+        for (const file of filesInGroup) {
             sb.push(`//------------------------------------------------------------`);
-            if (file.fileType === JAVA_EXTENSION) {
-                sb.push(`// Archivo Java: ${file.name}`);
-            } else {
-                sb.push(`// Archivo (Tipo: ${file.fileType.toUpperCase()}): ${file.name}`);
-            }
+            sb.push(`// Archivo (Tipo: ${file.fileType.toUpperCase()}): ${file.name}`);
             sb.push(`// Path: ${file.path}`); 
             sb.push(`//------------------------------------------------------------\n`);
             sb.push(file.content.trim());

@@ -6,30 +6,22 @@ import { UploadCloud, FileUp } from 'lucide-react';
 import { Button } from '@/components/ui/button';
 import { useToast } from '@/hooks/use-toast';
 import { t, type Language } from '@/lib/translations';
-import { SUPPORTED_EXTENSIONS } from '@/lib/file-processor';
+import { PROJECT_CONFIG, type ProjectType, getFileExtension } from '@/lib/file-processor';
 
 
 interface FileDropzoneProps {
   onFilesProcessed: (files: FileSystemFileEntry[]) => void;
   currentLanguage: Language;
+  projectType: ProjectType;
 }
 
-// From file-processor.ts, duplicated for client-side check
-const SUPPORTED_EXTENSIONS_DROPZONE = SUPPORTED_EXTENSIONS;
-
-function isSupportedFileType(fileName: string): boolean {
-  let extension = fileName.split('.').pop()?.toLowerCase();
-  if (fileName.startsWith('.') && extension) { 
-    const potentialExt = fileName.substring(1);
-    if (SUPPORTED_EXTENSIONS_DROPZONE.includes(potentialExt)) {
-      extension = potentialExt;
-    }
-  }
-  return extension ? SUPPORTED_EXTENSIONS_DROPZONE.includes(extension) : false;
+function isSupportedFileType(fileName: string, projectType: ProjectType): boolean {
+  const extension = getFileExtension(fileName);
+  return PROJECT_CONFIG[projectType].extensions.includes(extension);
 }
 
 
-export function FileDropzone({ onFilesProcessed, currentLanguage }: FileDropzoneProps) {
+export function FileDropzone({ onFilesProcessed, currentLanguage, projectType }: FileDropzoneProps) {
   const [isDragging, setIsDragging] = useState(false);
   const fileInputRef = useRef<HTMLInputElement>(null);
   const { toast } = useToast();
@@ -63,7 +55,7 @@ export function FileDropzone({ onFilesProcessed, currentLanguage }: FileDropzone
         const entry = items[i].webkitGetAsEntry();
         if (entry) {
           const lowerName = entry.name.toLowerCase();
-          if (entry.isDirectory || (entry.isFile && isSupportedFileType(entry.name))) {
+          if (entry.isDirectory || (entry.isFile && isSupportedFileType(entry.name, projectType))) {
             entries.push(entry);
           } else if (entry.isFile && (lowerName.endsWith('.zip') || lowerName.endsWith('.rar'))) {
             toast({
@@ -73,8 +65,8 @@ export function FileDropzone({ onFilesProcessed, currentLanguage }: FileDropzone
             });
           } else if (entry.isFile) { 
              toast({
-                title: t('unsupportedFile', currentLanguage),
-                description: t('unsupportedFileDescription', currentLanguage, { fileName: entry.name, supportedExtensions: SUPPORTED_EXTENSIONS_DROPZONE.join(', ') }),
+                title: t('unsupportedFile', currentLanguage, { projectType }),
+                description: t('unsupportedFileDescription', currentLanguage, { fileName: entry.name, supportedExtensions: PROJECT_CONFIG[projectType].extensions.join(', ') }),
                 variant: "default",
             });
           } else { 
@@ -90,7 +82,7 @@ export function FileDropzone({ onFilesProcessed, currentLanguage }: FileDropzone
         onFilesProcessed(entries);
       }
     }
-  }, [onFilesProcessed, toast, currentLanguage]);
+  }, [onFilesProcessed, toast, currentLanguage, projectType]);
 
   const handleManualSelect = (e: React.ChangeEvent<HTMLInputElement>) => {
     const files = e.target.files;
@@ -102,7 +94,7 @@ export function FileDropzone({ onFilesProcessed, currentLanguage }: FileDropzone
 
       fileList.forEach(file => {
         const lowerName = file.name.toLowerCase();
-        if (isSupportedFileType(file.name)) {
+        if (isSupportedFileType(file.name, projectType)) {
            const entry = {
             isFile: true,
             isDirectory: false,
@@ -125,8 +117,8 @@ export function FileDropzone({ onFilesProcessed, currentLanguage }: FileDropzone
         } else {
           if (!hasOtherUnsupported) {
              toast({
-                title: t('unsupportedFile', currentLanguage),
-                description: t('unsupportedFileDescription', currentLanguage, { fileName: file.name, supportedExtensions: SUPPORTED_EXTENSIONS_DROPZONE.join(', ') }),
+                title: t('unsupportedFile', currentLanguage, { projectType }),
+                description: t('unsupportedFileDescription', currentLanguage, { fileName: file.name, supportedExtensions: PROJECT_CONFIG[projectType].extensions.join(', ') }),
                 variant: "default",
             });
             hasOtherUnsupported = true;

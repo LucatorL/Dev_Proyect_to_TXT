@@ -17,8 +17,8 @@ import { ScrollArea } from "@/components/ui/scroll-area";
 import { Textarea } from "@/components/ui/textarea";
 import { Label } from "@/components/ui/label";
 import type { ProcessedFile, ProjectFile, PackageGroup, ProjectGroup } from '@/types/java-unifier';
-import { unifyJavaFiles, getProjectBaseName } from '@/lib/file-processor';
-import { Copy, Download, Eye, CheckSquare, Square, FileText, FileCode, Database, Settings2, Info, ChevronLeft, ChevronRight, PlusCircle } from 'lucide-react';
+import { unifyProjectFiles, getProjectBaseName, type ProjectType } from '@/lib/file-processor';
+import { Copy, Download, Eye, CheckSquare, Square, FileText, FileCode, Database, Settings2, Info, ChevronLeft, ChevronRight, PlusCircle, Globe, Combine, Code, FileJson, FileKey } from 'lucide-react';
 import { useToast } from '@/hooks/use-toast';
 import { Tooltip, TooltipContent, TooltipProvider, TooltipTrigger } from "@/components/ui/tooltip";
 import { ManualAddContentModal } from '@/components/java-unifier/ManualAddContentModal';
@@ -36,14 +36,39 @@ interface FileSelectionModalProps {
   onProjectViewedIndexChange?: (index: number) => void;
   onManualFileRequested: (fileName: string, content: string, targetProjectId: string | 'new_project') => void;
   currentLanguage: Language;
+  projectType: ProjectType;
 }
 
 const getFileIcon = (fileType: string) => {
   switch (fileType) {
     case 'java':
+    case 'kt':
       return <FileCode className="w-3.5 h-3.5 mr-1.5 text-blue-500 shrink-0" />;
+    case 'js':
+    case 'ts':
+    case 'jsx':
+    case 'tsx':
+    case 'mjs':
+    case 'cjs':
+      return <Code className="w-3.5 h-3.5 mr-1.5 text-yellow-500 shrink-0" />;
+    case 'html':
+    case 'vue':
+    case 'svelte':
+       return <Globe className="w-3.5 h-3.5 mr-1.5 text-orange-600 shrink-0" />;
+    case 'css':
+    case 'scss':
+    case 'less':
+        return <Combine className="w-3.5 h-3.5 mr-1.5 text-purple-500 shrink-0" />;
+    case 'json':
+    case 'package.json':
+    case 'tsconfig.json':
+        return <FileJson className="w-3.5 h-3.5 mr-1.5 text-green-600 shrink-0" />;
+    case 'env':
+    case 'gitignore':
+        return <FileKey className="w-3.5 h-3.5 mr-1.5 text-gray-500 shrink-0" />;
     case 'xml':
     case 'pom':
+    case 'gradle':
       return <Settings2 className="w-3.5 h-3.5 mr-1.5 text-orange-500 shrink-0" />;
     case 'sql':
       return <Database className="w-3.5 h-3.5 mr-1.5 text-indigo-500 shrink-0" />;
@@ -74,12 +99,12 @@ export function FileSelectionModal({
   onProjectViewedIndexChange,
   onManualFileRequested,
   currentLanguage,
+  projectType,
 }: FileSelectionModalProps) {
   const [currentDisplayProjects, setCurrentDisplayProjects] = useState<ProjectFile[]>(projectsToProcess);
   const [unifiedPreview, setUnifiedPreview] = useState("");
   const [estimatedTokens, setEstimatedTokens] = useState(0);
   const { toast } = useToast();
-  // const [outputFileName, setOutputFileName] = useState("proyecto_unificado.txt"); // No longer needed here
   const [individualFilePreview, setIndividualFilePreview] = useState<{ name: string, content: string, fileType: string } | null>(null);
   const [currentProjectIndex, setCurrentProjectIndex] = useState(initialProjectIndex);
   const [isManualAddModalOpen, setIsManualAddModalOpen] = useState(false);
@@ -104,21 +129,6 @@ export function FileSelectionModal({
     }
   }, [currentProjectIndex, onProjectViewedIndexChange]);
 
-  // OutputFileName is now determined in handleConfirmAndSave just before download
-  // useEffect(() => {
-  //   let fileName = "Proyectos_Unificados_unificado.txt";
-  //   if (currentDisplayProjects.length > 0) {
-  //     const projectForName = currentDisplayProjects[currentProjectIndex] || currentDisplayProjects[0];
-  //     if (isMultiProjectMode) {
-  //       fileName = (currentDisplayProjects.length > 1 ? "Proyectos_Unificados" : getProjectBaseName(projectForName?.name || "proyecto")) + "_unificado.txt";
-  //     } else {
-  //       fileName = getProjectBaseName(projectForName?.name || "proyecto") + "_unificado.txt";
-  //     }
-  //   }
-  //   setOutputFileName(fileName);
-  // }, [currentProjectIndex, isMultiProjectMode, currentDisplayProjects]);
-
-
   useEffect(() => {
     if (showPreview && currentDisplayProjects.length > 0) {
       const projectsForPreview = isMultiProjectMode ? currentDisplayProjects : (currentDisplayProjects[currentProjectIndex] ? [currentDisplayProjects[currentProjectIndex]] : []);
@@ -132,8 +142,7 @@ export function FileSelectionModal({
         setEstimatedTokens(0);
         return;
       }
-      // Pass language to unifyJavaFiles if its output comments need translation
-      const content = unifyJavaFiles(selectedProjectsForPreview, isMultiProjectMode); 
+      const content = unifyProjectFiles(selectedProjectsForPreview, isMultiProjectMode); 
       setUnifiedPreview(content);
       const tokens = Math.max(0, Math.ceil(content.length / 4));
       setEstimatedTokens(tokens);
@@ -174,33 +183,11 @@ export function FileSelectionModal({
       )
     );
   };
-  
-  const handleSelectOnlyJavaInVisibleProjects = (selectJava: boolean) => {
-    const targetProjectIds = isMultiProjectMode 
-      ? currentDisplayProjects.map(p => p.id) 
-      : (currentDisplayProjects[currentProjectIndex] ? [currentDisplayProjects[currentProjectIndex].id] : []);
-
-    setCurrentDisplayProjects(prevProjects =>
-        prevProjects.map(proj =>
-          targetProjectIds.includes(proj.id)
-            ? {
-                ...proj,
-                files: proj.files.map(file => ({
-                ...file,
-                selected: file.fileType === 'java' ? selectJava : (selectJava ? false : file.selected)
-                })),
-            }
-            : proj
-        )
-    );
-  };
 
   const handleConfirmAndSave = () => {
     let finalOutputFileName: string;
     let finalUnifiedContent: string;
-    // let projectsIncludedInUnification: ProjectFile[] = []; // Not strictly needed locally
-
-
+    
     if (isMultiProjectMode) {
       const projectsToUnify = currentDisplayProjects.map(p => ({
         ...p,
@@ -211,13 +198,12 @@ export function FileSelectionModal({
         toast({ title: t('noSelection', currentLanguage), description: t('pleaseSelectOneFileFromAProject', currentLanguage), variant: "destructive" });
         return;
       }
-      finalUnifiedContent = unifyJavaFiles(projectsToUnify, true); // Pass lang if needed
+      finalUnifiedContent = unifyProjectFiles(projectsToUnify, true);
       const baseName = projectsToUnify.length > 1 || !projectsToUnify[0] 
         ? t('unifiedProjectsGenericName', currentLanguage).replace(/\s/g, '_') 
         : getProjectBaseName(projectsToUnify[0].name);
       finalOutputFileName = `${baseName}_unificado.txt`;
       
-      // projectsIncludedInUnification = projectsToUnify;
       const projectIdsProcessed = projectsToUnify.map(p => p.id);
 
       onMultiProjectProcessed(projectIdsProcessed, { fileName: finalOutputFileName, content: finalUnifiedContent });
@@ -230,10 +216,9 @@ export function FileSelectionModal({
         toast({ title: t('noSelection', currentLanguage), description: t('pleaseSelectOneFileFromCurrentProject', currentLanguage), variant: "destructive" });
         return;
       }
-      finalUnifiedContent = unifyJavaFiles([{...currentProjectForConfirm, files: selectedFiles}], false); // Pass lang if needed
+      finalUnifiedContent = unifyProjectFiles([{...currentProjectForConfirm, files: selectedFiles}], false);
       finalOutputFileName = getProjectBaseName(currentProjectForConfirm.name) + "_unificado.txt";
       
-      // projectsIncludedInUnification = [currentProjectForConfirm];
       onSingleProjectProcessed(currentProjectForConfirm.id, { fileName: finalOutputFileName, content: finalUnifiedContent });
     } else {
       toast({ title: t('error', currentLanguage), description: t('noProjectToUnify', currentLanguage), variant: "destructive" });
@@ -277,13 +262,13 @@ export function FileSelectionModal({
             return pkgA.localeCompare(pkgB);
         })
         .map(([packageName, filesInPkg]) => ({
-          packageName, // This is the logic constant
+          packageName,
           files: filesInPkg.sort((a,b) => a.name.localeCompare(b.name)),
         }));
       
       return { projectName: project.name, projectActualId: project.id, packages };
     });
-  }, [projectsForListDisplay, currentLanguage]); // Added currentLanguage dependency
+  }, [projectsForListDisplay]);
 
   const getDisplayPackageName = (packageNameConstant: string) => {
     if (packageNameConstant === DEFAULT_PACKAGE_NAME_LOGIC) {
@@ -362,9 +347,6 @@ export function FileSelectionModal({
                 {isMultiProjectMode ? t('projectFiles', currentLanguage) : t('filesFromProject', currentLanguage, { projectName: currentDisplayProjects[currentProjectIndex]?.name || t('currentProjectFallbackName', currentLanguage) })}
               </Label>
               <div className="space-x-1">
-                <Button variant="ghost" size="sm" onClick={() => handleSelectOnlyJavaInVisibleProjects(true)} title={t('onlyJava', currentLanguage)}>
-                  <FileCode className="w-4 h-4 mr-1" /> {t('onlyJava', currentLanguage)}
-                </Button>
                  <Button variant="ghost" size="sm" onClick={() => handleSelectAllInVisibleProjects(true)} title={t('selectAll', currentLanguage)}>
                   <CheckSquare className="w-4 h-4" /> {t('selectAll', currentLanguage)}
                 </Button>
@@ -501,6 +483,3 @@ export function FileSelectionModal({
     </Dialog>
   );
 }
-
-
-      

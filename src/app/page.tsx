@@ -10,8 +10,8 @@ import { RecentFilesList } from '@/components/java-unifier/RecentFilesList';
 import { FileSelectionModal } from '@/components/java-unifier/FileSelectionModal';
 import useLocalStorage from '@/hooks/useLocalStorage';
 import type { ProjectFile, RecentEntry, ProcessedFile } from '@/types/java-unifier';
-import { processDroppedItems, unifyJavaFiles, downloadTextFile, getProjectBaseName, getFileExtension, extractJavaPackageName, SUPPORTED_EXTENSIONS } from '@/lib/file-processor';
-import { DEFAULT_PACKAGE_NAME_LOGIC, OTHER_FILES_PACKAGE_NAME_LOGIC, t, type Language, translations } from '@/lib/translations';
+import { processDroppedItems, unifyProjectFiles, downloadTextFile, getProjectBaseName, getFileExtension, extractJavaPackageName, type ProjectType, PROJECT_CONFIG } from '@/lib/file-processor';
+import { DEFAULT_PACKAGE_NAME_LOGIC, OTHER_FILES_PACKAGE_NAME_LOGIC, t, type Language } from '@/lib/translations';
 import { useToast } from "@/hooks/use-toast";
 import {
   AlertDialog,
@@ -27,11 +27,12 @@ import { Github } from 'lucide-react';
 
 
 const MAX_RECENTS = 5; 
-const APP_VERSION = "0.1.7"; 
+const APP_VERSION = "0.2.0"; 
 
-export default function JavaUnifierPage() {
-  const [recents, setRecents] = useLocalStorage<RecentEntry[]>('java-unifier-recents', []);
-  const [language, setLanguage] = useLocalStorage<Language>('java-unifier-language', 'es');
+export default function DevProjectUnifierPage() {
+  const [recents, setRecents] = useLocalStorage<RecentEntry[]>('dev-project-unifier-recents', []);
+  const [language, setLanguage] = useLocalStorage<Language>('dev-project-unifier-language', 'es');
+  const [projectType, setProjectType] = useLocalStorage<ProjectType>('dev-project-type', 'java');
   
   const [processedProjects, setProcessedProjects] = useState<ProjectFile[]>([]);
   const [isSelectionModalOpen, setIsSelectionModalOpen] = useState(false);
@@ -79,11 +80,11 @@ export default function JavaUnifierPage() {
     if (droppedItems.length === 0) return;
 
     try {
-      const projects = await processDroppedItems(droppedItems);
+      const projects = await processDroppedItems(droppedItems, projectType);
       if (projects.length === 0 || projects.every(p => p.files.length === 0)) {
         toast({
           title: t('noSupportedFilesFoundToastTitle', language),
-          description: t('noSupportedFilesFoundToastDescription', language, { extensions: SUPPORTED_EXTENSIONS.join(', ') }),
+          description: t('noSupportedFilesFoundToastDescription', language, { projectType, extensions: PROJECT_CONFIG[projectType].extensions.join(', ') }),
           variant: "default",
         });
         return;
@@ -209,7 +210,7 @@ export default function JavaUnifierPage() {
                         packageName,
                         fileType,
                         projectName: proj.name, 
-                        selected: fileType === 'java',
+                        selected: PROJECT_CONFIG[projectType].defaultSelected.includes(fileType),
                     };
                     const updatedProject = { ...proj, files: [...proj.files, newFile], timestamp: Date.now() };
                     addRecentEntry(updatedProject);
@@ -229,7 +230,7 @@ export default function JavaUnifierPage() {
             packageName,
             fileType,
             projectName: newProjectName,
-            selected: fileType === 'java',
+            selected: PROJECT_CONFIG[projectType].defaultSelected.includes(fileType),
         };
         const newProject: ProjectFile = {
             id: `manual-project-${Date.now()}-${Math.random()}`,
@@ -264,92 +265,36 @@ export default function JavaUnifierPage() {
 
   const changelogContent = `
     <ul class="list-disc pl-5 space-y-2 text-sm">
-       <li>
-        Versión ${APP_VERSION} (UI Traducida)
+      <li>
+        Versión ${APP_VERSION} (Dev_Proyect_to_TXT)
+        <ul class="list-disc pl-5 space-y-1 mt-1">
+          <li>¡Gran Actualización! La aplicación ahora se llama <strong>Dev_Proyect_to_TXT</strong>.</li>
+          <li><strong>Selector de Tipo de Proyecto:</strong> Se ha añadido un selector en la cabecera para elegir entre proyectos de tipo 'Java', 'Web', o 'Total'.</li>
+          <li><strong>Soporte Extendido de Archivos:</strong>
+            <ul class="list-disc pl-5">
+               <li>El tipo 'Java' se centra en archivos de ecosistema Java (.java, .xml, .properties, .gradle, etc.).</li>
+               <li>El tipo 'Web' se centra en archivos de desarrollo web (.html, .css, .js, .ts, .jsx, .tsx, .json, etc.).</li>
+               <li>El tipo 'Total' reconoce una amplia gama de archivos de desarrollo para una unificación completa.</li>
+            </ul>
+          </li>
+          <li><strong>Selección por Defecto Inteligente:</strong> Los archivos primarios del tipo de proyecto seleccionado (ej: .java para Java, .js/.ts para Web) se seleccionan automáticamente en el modal.</li>
+          <li><strong>Agrupación Mejorada:</strong> Los archivos de proyectos 'Web' y 'Total' ahora se agrupan por su ruta de directorio en el modal de selección para una mejor organización.</li>
+          <li>Actualizada toda la interfaz y los textos para reflejar el nuevo enfoque multi-proyecto.</li>
+        </ul>
+      </li>
+      <li>
+        Versión 0.1.7 (UI Traducida)
         <ul class="list-disc pl-5 space-y-1 mt-1">
           <li>Internacionalización: Interfaz de usuario ahora disponible en Inglés y Español.</li>
           <li>Selector de idioma movido a la cabecera.</li>
-          <li>Adición Manual de Archivos Mejorada:
-            <ul class="list-disc pl-5">
-              <li>Al añadir un archivo manualmente desde el modal de selección:
-                <ul class="list-disc pl-5">
-                  <li>Si "Unificar Múltiples Proyectos" está activado, se puede elegir añadir el archivo a un proyecto existente o crearlo como un nuevo "proyecto" en la lista.</li>
-                  <li>Si "Unificar Múltiples Proyectos" está desactivado, se puede elegir añadir el archivo al proyecto actual visible o crearlo como un nuevo "proyecto".</li>
-                </ul>
-              </li>
-              <li>La entrada de "Recientes" se actualiza para el proyecto modificado o el nuevo proyecto manual.</li>
-            </ul>
-          </li>
-          <li>Historial de Procesados Más Descriptivo:
-            <ul class="list-disc pl-5">
-              <li>Al unificar múltiples proyectos, la entrada en "Recientes" ahora lista los nombres de los proyectos unificados (ej: "Unificación de: ProyectoA, ProyectoB").</li>
-            </ul>
-          </li>
-        </ul>
-      </li>
-      <li>
-        Versión 0.1.6
-        <ul class="list-disc pl-5 space-y-1 mt-1">
-          <li>Adición Manual de Archivos (Comportamiento Anterior):
-            <ul class="list-disc pl-5">
-              <li>Si "Unificar Múltiples Proyectos" estaba desactivado y había un proyecto visible, el archivo manual se añadía a ese proyecto.</li>
-              <li>En otros casos, el archivo manual creaba un nuevo "proyecto" en la lista.</li>
-            </ul>
-          </li>
-          <li>Historial de Recientes para Unificaciones Múltiples (Comportamiento Anterior):
-            <ul class="list-disc pl-5">
-              <li>Se creaba una entrada genérica en "Recientes" (ej: "Proyectos Unificados").</li>
-            </ul>
-          </li>
-        </ul>
-      </li>
-      <li>
-        Versión 0.1.5
-        <ul class="list-disc pl-5 space-y-1 mt-1">
-          <li>Funcionalidad "Añadir Contenido Manualmente":
-            <ul class="list-disc pl-5">
-              <li>El botón para añadir contenido manualmente se movió al modal de selección de archivos.</li>
-              <li>El archivo creado manualmente se añadía a la lista de proyectos.</li>
-            </ul>
-          </li>
-        </ul>
-      </li>
-      <li>
-        Versión 0.1.4
-        <ul class="list-disc pl-5 space-y-1 mt-1">
-          <li>Reestructurado el formato del changelog.</li>
-          <li>Ajustado el comportamiento al cerrar el modal de selección de archivos con "X"/Esc/Cancelar.</li>
-          <li>Corregida la gestión de la descarga de proyectos individuales.</li>
-        </ul>
-      </li>
-      <li>
-        Versión 0.1.3
-        <ul class="list-disc pl-5 space-y-1 mt-1">
-          <li>Corregido un error grave donde proyectos cerrados podían ser incluidos incorrectamente en unificaciones posteriores.</li>
+          <li>Adición Manual de Archivos Mejorada.</li>
+          <li>Historial de Procesados Más Descriptivo.</li>
         </ul>
       </li>
        <li>
-        Versión 0.1.2
+        Versiones Anteriores (0.1.0 - 0.1.6)
         <ul class="list-disc pl-5 space-y-1 mt-1">
-          <li>Corregido error de visualización de conteo de tokens negativo.</li>
-          <li>Corregido error de posicionamiento del modal de selección de archivos.</li>
-        </ul>
-      </li>
-      <li>
-        Versión 0.1.1
-        <ul class="list-disc pl-5 space-y-1 mt-1">
-          <li>Rehabilitado el interruptor "Unificar Múltiples Proyectos".</li>
-          <li>Añadida navegación por proyectos individuales en el modal.</li>
-          <li>En modo de proyecto individual, al descargar, solo ese proyecto se elimina de la lista.</li>
-        </ul>
-      </li>
-      <li>
-        Versión Inicial (0.1.0 y anteriores)
-        <ul class="list-disc pl-5 space-y-1 mt-1">
-          <li>Funcionalidad de arrastrar y soltar, soporte de tipos de archivo, modal de selección, descarga, historial, tema, enlace a GitHub.</li>
-          <li>Estimación de tokens, versión de app en cabecera y changelog.</li>
-          <li>Actualización automática del changelog.</li>
-          <li>Foto de perfil y enlace a GitHub de Lucas en pie de página.</li>
+          <li>Funcionalidades iniciales de unificación de archivos Java, modo multi-proyecto, vista previa, historial, temas y corrección de errores.</li>
         </ul>
       </li>
     </ul>
@@ -367,10 +312,12 @@ export default function JavaUnifierPage() {
         onVersionClick={handleVersionClick}
         currentLanguage={language}
         onLanguageChange={setLanguage}
+        projectType={projectType}
+        onProjectTypeChange={setProjectType}
       />
       
       <main className="flex-grow container mx-auto px-4 py-8">
-        <FileDropzone onFilesProcessed={handleFilesDropped} currentLanguage={language} />
+        <FileDropzone onFilesProcessed={handleFilesDropped} currentLanguage={language} projectType={projectType} />
         <RecentFilesList 
             recents={recents} 
             onSelectRecent={handleSelectRecent}
@@ -392,6 +339,7 @@ export default function JavaUnifierPage() {
           onProjectViewedIndexChange={setCurrentProjectIndexInModal}
           onManualFileRequested={handleManualContentAddRequested} 
           currentLanguage={language}
+          projectType={projectType}
         />
       )}
       {selectedRecentForInfoModal && (
@@ -471,6 +419,3 @@ export default function JavaUnifierPage() {
     </div>
   );
 }
-
-
-    

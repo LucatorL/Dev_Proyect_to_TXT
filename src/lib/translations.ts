@@ -1,4 +1,6 @@
 // src/lib/translations.ts
+import type { ProjectType } from "./file-processor";
+
 export type Language = 'en' | 'es';
 
 // Constants used in logic, their display text will be translated
@@ -16,19 +18,23 @@ export const translations = {
     english: "English",
     spanish: "Español",
     appVersion: "v{version}",
+    projectType: "Project Type",
+    projectTypeJava: "Java",
+    projectTypeWeb: "Web",
+    projectTypeTotal: "Total",
 
     // FileDropzone
     dropzoneHint: "Drag project folders or supported files here",
-    dropzoneSubHint: "(.java, .xml, .txt, .sql, .dat, pom.xml, etc. ZIP/RAR files must be extracted first)",
+    dropzoneSubHint: "Select a project type to see supported files. ZIP/RAR must be extracted first.",
     selectFoldersOrFiles: "Select Folders or Files",
     compressedFileNotSupported: "Compressed file not directly supported",
     compressedFileDescription: "File '{fileName}' is a ZIP/RAR. Please extract it first and then drag the folder or supported files.",
-    unsupportedFile: "Unsupported File",
-    unsupportedFileDescription: "File '{fileName}' is not a supported type and will be ignored. Folders and files {supportedExtensions} are accepted.",
+    unsupportedFile: "Unsupported File for '{projectType}' type",
+    unsupportedFileDescription: "File '{fileName}' is not a supported type for the selected project type and will be ignored. Supported: {supportedExtensions}",
     unsupportedItem: "Unsupported Item",
     unsupportedItemDescription: "Item '{fileName}' is not a folder or a supported file and will be ignored.",
     noValidFilesSelected: "No valid files selected",
-    noValidFilesSelectedDescription: "No supported file types were selected. Please try again.",
+    noValidFilesSelectedDescription: "No supported file types were selected for the current project type. Please try again.",
     
     // RecentFilesList
     processedHistory: "Processed History",
@@ -43,7 +49,7 @@ export const translations = {
     unifyMultipleProjectsTitle: "Unify Multiple Projects",
     selectFilesFromProjectTitle: "Select Files from: {projectName}",
     projectPageIndicator: "({currentIndex} of {totalProjects})",
-    selectFilesModalDescription: "Select the files you want to include in the unified file. Java files are selected by default.",
+    selectFilesModalDescription: "Select the files to include. Primary files for the project type are selected by default.",
     projectFiles: "Project Files",
     filesFromProject: "Files from: {projectName}",
     currentProjectFallbackName: "Current Project",
@@ -81,7 +87,7 @@ export const translations = {
     addManualContentTitle: "Add Content Manually",
     addManualContentDescription: "Paste the content, assign a name (with extension), and choose where to add it.",
     fileNameLabel: "File Name",
-    fileNamePlaceholder: "E.g.: MyClass.java, config.xml",
+    fileNamePlaceholder: "E.g.: MyClass.java, styles.css",
     contentLabel: "Content",
     contentPlaceholder: "Paste your file content here...",
     destinationLabel: "Destination",
@@ -94,13 +100,13 @@ export const translations = {
     noExtensionWarning: "File name does not seem to have an extension (e.g., .java, .txt).",
     
     // page.tsx (general UI)
-    appTitle: "Java Unifier",
-    appDescription: "Unify Java project files easily.",
+    appTitle: "Dev_Proyect_to_TXT",
+    appDescription: "Unify project files (Java, Web, etc.) into a single document.",
     
     // Toasts in page.tsx
     entryDeletedFromHistoryToast: "Entry deleted from history.", 
     noSupportedFilesFoundToastTitle: "No supported files found",
-    noSupportedFilesFoundToastDescription: "No supported files ({extensions}) were found in the provided items or they could not be processed.",
+    noSupportedFilesFoundToastDescription: "No supported files for the '{projectType}' project type were found in the provided items.",
     processingErrorToastTitle: "Processing Error",
     processingErrorToastDescription: "An error occurred while processing the files. Check the console for more details.",
     successToastTitle: "Success",
@@ -125,8 +131,8 @@ export const translations = {
     versionNewsTitle: "Version {version} News", 
 
     // Footer (page.tsx)
-    footerAdaptedFrom: "Java Unifier - Adapted from the",
-    originalApplicationLinkText: "original application",
+    footerAdaptedFrom: "Dev_Proyect_to_TXT - Adapted from the",
+    originalApplicationLinkText: "original JavaSourceToTxt",
     byText: "by",
     lucasProfileText: "Lucas",
     reportIssueLinkText: "Report an Issue / Suggestions",
@@ -151,19 +157,23 @@ export const translations = {
     english: "English",
     spanish: "Español",
     appVersion: "v{version}",
+    projectType: "Tipo de Proyecto",
+    projectTypeJava: "Java",
+    projectTypeWeb: "Web",
+    projectTypeTotal: "Total",
 
     // FileDropzone
     dropzoneHint: "Arrastra aquí carpetas o archivos soportados",
-    dropzoneSubHint: "(.java, .xml, .txt, .sql, .dat, pom.xml, etc. Archivos ZIP/RAR deben extraerse primero)",
+    dropzoneSubHint: "Selecciona un tipo de proyecto para ver los archivos soportados. ZIP/RAR deben extraerse primero.",
     selectFoldersOrFiles: "Seleccionar Carpetas o Archivos",
     compressedFileNotSupported: "Archivo comprimido no soportado directamente",
     compressedFileDescription: "El archivo '{fileName}' es un ZIP/RAR. Por favor, extráelo primero y luego arrastra la carpeta o los archivos soportados.",
-    unsupportedFile: "Archivo no soportado",
-    unsupportedFileDescription: "El archivo '{fileName}' no es de un tipo soportado y será ignorado. Se aceptan carpetas y archivos {supportedExtensions}.",
+    unsupportedFile: "Archivo no soportado para tipo '{projectType}'",
+    unsupportedFileDescription: "El archivo '{fileName}' no es de un tipo soportado para el tipo de proyecto seleccionado y será ignorado. Soportados: {supportedExtensions}",
     unsupportedItem: "Elemento no soportado",
     unsupportedItemDescription: "El elemento '{fileName}' no es una carpeta o un archivo soportado y será ignorado.",
     noValidFilesSelected: "Sin archivos válidos",
-    noValidFilesSelectedDescription: "No se seleccionaron archivos de tipos soportados. Por favor, inténtalo de nuevo.",
+    noValidFilesSelectedDescription: "No se seleccionaron archivos de tipos soportados para el tipo de proyecto actual. Por favor, inténtalo de nuevo.",
 
     // RecentFilesList
     processedHistory: "Historial de Procesados",
@@ -178,7 +188,7 @@ export const translations = {
     unifyMultipleProjectsTitle: "Unificar Múltiples Proyectos",
     selectFilesFromProjectTitle: "Seleccionar Archivos de: {projectName}",
     projectPageIndicator: "({currentIndex} de {totalProjects})",
-    selectFilesModalDescription: "Selecciona los archivos que deseas incluir en el archivo unificado. Los archivos Java están seleccionados por defecto.",
+    selectFilesModalDescription: "Selecciona los archivos a incluir. Los archivos primarios para el tipo de proyecto se seleccionan por defecto.",
     projectFiles: "Archivos de Proyectos",
     filesFromProject: "Archivos de: {projectName}",
     currentProjectFallbackName: "Proyecto Actual",
@@ -216,7 +226,7 @@ export const translations = {
     addManualContentTitle: "Añadir Contenido Manualmente",
     addManualContentDescription: "Pega el contenido, asígnale un nombre (con extensión) y elige dónde añadirlo.",
     fileNameLabel: "Nombre Archivo",
-    fileNamePlaceholder: "Ej: MiClase.java, config.xml",
+    fileNamePlaceholder: "Ej: MiClase.java, styles.css",
     contentLabel: "Contenido",
     contentPlaceholder: "Pega aquí el contenido de tu archivo...",
     destinationLabel: "Destino",
@@ -229,13 +239,13 @@ export const translations = {
     noExtensionWarning: "El nombre del archivo no parece tener una extensión (ej: .java, .txt).",
 
     // page.tsx (general UI)
-    appTitle: "Java Unifier",
-    appDescription: "Unifica archivos de proyectos Java fácilmente.",
+    appTitle: "Dev_Proyect_to_TXT",
+    appDescription: "Unifica archivos de proyectos (Java, Web, etc.) en un solo documento.",
 
     // Toasts in page.tsx
     entryDeletedFromHistoryToast: "Entrada eliminada del historial.",
     noSupportedFilesFoundToastTitle: "Sin archivos soportados",
-    noSupportedFilesFoundToastDescription: "No se encontraron archivos soportados ({extensions}) en los elementos proporcionados o no se pudieron procesar.",
+    noSupportedFilesFoundToastDescription: "No se encontraron archivos soportados para el tipo de proyecto '{projectType}' en los elementos proporcionados.",
     processingErrorToastTitle: "Error de Procesamiento",
     processingErrorToastDescription: "Ocurrió un error al procesar los archivos. Revisa la consola para más detalles.",
     successToastTitle: "Éxito",
@@ -260,8 +270,8 @@ export const translations = {
     versionNewsTitle: "Novedades de la Versión {version}",
 
     // Footer (page.tsx)
-    footerAdaptedFrom: "Java Unifier - Adaptado de la",
-    originalApplicationLinkText: "aplicación original",
+    footerAdaptedFrom: "Dev_Proyect_to_TXT - Adaptado de",
+    originalApplicationLinkText: "la aplicación original JavaSourceToTxt",
     byText: "de",
     lucasProfileText: "Lucas",
     reportIssueLinkText: "Reportar un Problema / Sugerencias",
@@ -306,6 +316,3 @@ export function t(key: string, lang: Language, replacements?: Record<string, str
   }
   return str;
 }
-
-
-      
