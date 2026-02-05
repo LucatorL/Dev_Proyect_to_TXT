@@ -36,7 +36,6 @@ export function RecentFilesList({ recents, onSelectRecent, onRemoveRecent, curre
       case 'folder': return <Folder className="w-4 h-4 mr-2 text-accent shrink-0" />;
       case 'file': return <FileIconLucide className="w-4 h-4 mr-2 text-accent shrink-0" />;
       default:
-        const exhaustiveCheck: never = type; 
         return <FileIconLucide className="w-4 h-4 mr-2 text-muted-foreground shrink-0" />;
     }
   }
@@ -95,3 +94,5 @@ export function RecentFilesList({ recents, onSelectRecent, onRemoveRecent, curre
     </Card>
   );
 }
+
+    
