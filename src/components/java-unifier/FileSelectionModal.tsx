@@ -318,7 +318,14 @@ export function FileSelectionModal({
 
   return (
     <Dialog open={isOpen} onOpenChange={(open) => { if(!open) onClose(); }}>
-      <DialogContent className="max-w-4xl h-[90vh] flex flex-col p-0">
+      <DialogContent 
+        className="max-w-4xl h-[90vh] flex flex-col p-0"
+        onPointerDownOutside={(e) => {
+          if ((e.target as HTMLElement)?.closest('[data-toast-viewport="true"]')) {
+            e.preventDefault();
+          }
+        }}
+      >
         {!isMultiProjectMode && projectsToProcess.length > 1 && (
           <>
             <Button
