@@ -30,7 +30,7 @@ interface FileSelectionModalProps {
   onClose: () => void; 
   projectsToProcess: ProjectFile[];
   otherTypeFiles: FileSystemFileEntry[];
-  onAddOtherTypeFile: (entry: FileSystemFileEntry) => void;
+  onAddOtherTypeFile: (entry: FileSystemFileEntry, targetProjectId: string | 'new_project') => void;
   onSingleProjectProcessed: (projectId: string, downloadData: { fileName: string; content: string }) => void;
   onMultiProjectProcessed: (projectIdsToRemove: string[], downloadData: { fileName: string; content: string }) => void;
   isMultiProjectMode: boolean;
@@ -451,7 +451,12 @@ export function FileSelectionModal({
                                       {otherTypeFiles.map(entry => (
                                           <div key={entry.fullPath} className="flex items-center justify-between text-sm py-0.5 px-1 rounded hover:bg-accent/50 group">
                                               <span className="truncate flex-grow" title={entry.name}>{entry.name}</span>
-                                              <Button size="sm" variant="ghost" className="h-7" onClick={() => onAddOtherTypeFile(entry)}>
+                                              <Button size="sm" variant="ghost" className="h-7" onClick={() => {
+                                                  const targetProjectId = (!isMultiProjectMode && projectsToProcess.length > 0 && projectsToProcess[currentProjectIndex])
+                                                      ? projectsToProcess[currentProjectIndex].id
+                                                      : 'new_project';
+                                                  onAddOtherTypeFile(entry, targetProjectId);
+                                              }}>
                                                   {t('add', currentLanguage)}
                                               </Button>
                                           </div>

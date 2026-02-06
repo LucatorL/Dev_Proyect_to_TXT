@@ -81,81 +81,76 @@ export default function DevProjectUnifierPage() {
       toast({ title: t('error', language), description: t('fileNameEmptyError', language), variant: "destructive" });
       return;
     }
-
+  
     const fileType = getFileExtension(fileName);
     let packageName = fileType === 'java' ? extractJavaPackageName(content) : OTHER_FILES_PACKAGE_NAME_LOGIC;
     if (packageName === '' && fileType === 'java') packageName = DEFAULT_PACKAGE_NAME_LOGIC;
-
+  
     const uniqueFileId = `manual-file-${Date.now()}-${Math.random()}`;
-
-    if (targetProjectId !== 'new_project' && processedProjects.some(p => p.id === targetProjectId)) {
-        setProcessedProjects(prevProjects => 
-            prevProjects.map(proj => {
-                if (proj.id === targetProjectId) {
-                    const newFile: ProcessedFile = {
-                        id: uniqueFileId,
-                        path: fileName, 
-                        name: fileName,
-                        content,
-                        packageName,
-                        fileType,
-                        projectName: proj.name, 
-                        selected: PROJECT_CONFIG[projectType].defaultSelected.includes(fileType),
-                    };
-                    const updatedProject = { ...proj, files: [...proj.files, newFile], timestamp: Date.now() };
-                    addRecentEntry(updatedProject);
-                    toast({ title: t('fileAddedToastTitle', language), description: t('fileXAddedToYToast', language, { fileName, projectName: proj.name }) });
-                    return updatedProject;
-                }
-                return proj;
-            })
-        );
-    } else {
+  
+    setProcessedProjects(prevProjects => {
+      if (targetProjectId !== 'new_project' && prevProjects.some(p => p.id === targetProjectId)) {
+        const targetProject = prevProjects.find(p => p.id === targetProjectId);
+        toast({ title: t('fileAddedToastTitle', language), description: t('fileXAddedToYToast', language, { fileName, projectName: targetProject?.name || '' }) });
+        
+        return prevProjects.map(proj => {
+          if (proj.id === targetProjectId) {
+            const newFile: ProcessedFile = {
+              id: uniqueFileId,
+              path: fileName,
+              name: fileName,
+              content,
+              packageName,
+              fileType,
+              projectName: proj.name,
+              selected: PROJECT_CONFIG[projectType].defaultSelected.includes(fileType),
+            };
+            const updatedProject = { ...proj, files: [...proj.files, newFile], timestamp: Date.now() };
+            addRecentEntry(updatedProject);
+            return updatedProject;
+          }
+          return proj;
+        });
+      } else {
         const newProjectName = `Manual: ${getProjectBaseName(fileName) || 'Archivo'}`;
         const newFile: ProcessedFile = {
-            id: uniqueFileId,
-            path: fileName,
-            name: fileName,
-            content,
-            packageName,
-            fileType,
-            projectName: newProjectName,
-            selected: PROJECT_CONFIG[projectType].defaultSelected.includes(fileType),
+          id: uniqueFileId,
+          path: fileName,
+          name: fileName,
+          content,
+          packageName,
+          fileType,
+          projectName: newProjectName,
+          selected: PROJECT_CONFIG[projectType].defaultSelected.includes(fileType),
         };
         const newProject: ProjectFile = {
-            id: `manual-project-${Date.now()}-${Math.random()}`,
-            name: newProjectName,
-            type: 'file', 
-            files: [newFile],
-            timestamp: Date.now(),
+          id: `manual-project-${Date.now()}-${Math.random()}`,
+          name: newProjectName,
+          type: 'file',
+          files: [newFile],
+          timestamp: Date.now(),
         };
-
-        setProcessedProjects(prevProjects => [...prevProjects, newProject]);
-        addRecentEntry(newProject); 
+  
+        addRecentEntry(newProject);
         
-        if (!isSelectionModalOpen || (processedProjects.length === 0 && !isMultiProjectMode)) {
-            setCurrentProjectIndexInModal(processedProjects.length); 
-            setIsSelectionModalOpen(true);
-        } else if (!isMultiProjectMode) {
-             setCurrentProjectIndexInModal(processedProjects.length); 
+        setCurrentProjectIndexInModal(prevProjects.length);
+        if (!isSelectionModalOpen) {
+          setIsSelectionModalOpen(true);
         }
+  
         toast({ title: t('fileAddedToastTitle', language), description: t('fileXAddedAsNewProjectToast', language, { fileName }) });
-    }
-  }, [processedProjects, projectType, language, toast, addRecentEntry, setProcessedProjects, isSelectionModalOpen, isMultiProjectMode, setCurrentProjectIndexInModal, setIsSelectionModalOpen]);
+        return [...prevProjects, newProject];
+      }
+    });
+  }, [projectType, language, toast, addRecentEntry, setProcessedProjects, isSelectionModalOpen, setIsSelectionModalOpen, setCurrentProjectIndexInModal]);
 
-
-  const handleAddOtherTypeFile = useCallback(async (entry: FileSystemFileEntry) => {
+  const handleAddOtherTypeFile = useCallback(async (entry: FileSystemFileEntry, targetProjectId: string | 'new_project') => {
     if (!entry.isFile) return;
-
-    const targetProjectId = (!isMultiProjectMode && processedProjects.length > 0 && processedProjects[currentProjectIndexInModal])
-        ? processedProjects[currentProjectIndexInModal].id
-        : 'new_project';
 
     try {
         const file = await new Promise<File>((resolve, reject) => entry.file(resolve, reject));
         const content = await readFileContent(file);
         handleManualContentAddRequested(file.name, content, targetProjectId);
-        // Remove the file from the "other types" list
         setOtherTypeFiles(prev => prev.filter(f => f.fullPath !== entry.fullPath));
     } catch (error) {
         console.error("Error reading file to add anyway:", error);
@@ -165,7 +160,7 @@ export default function DevProjectUnifierPage() {
             variant: "destructive",
         });
     }
-  }, [isMultiProjectMode, processedProjects, currentProjectIndexInModal, handleManualContentAddRequested, language, toast, setOtherTypeFiles]);
+  }, [handleManualContentAddRequested, language, toast]);
 
 
   const handleFilesDropped = async (droppedItems: FileSystemFileEntry[]) => {
