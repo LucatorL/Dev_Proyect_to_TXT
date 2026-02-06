@@ -34,7 +34,7 @@ export default function DevProjectUnifierPage() {
   const [projectType, setProjectType] = useLocalStorage<ProjectType>('dev-project-type', 'java');
   
   const [processedProjects, setProcessedProjects] = useState<ProjectFile[]>([]);
-  const [unsupportedFiles, setUnsupportedFiles] = useState<FileSystemFileEntry[]>([]);
+  const [otherTypeFiles, setOtherTypeFiles] = useState<FileSystemFileEntry[]>([]);
   const [isSelectionModalOpen, setIsSelectionModalOpen] = useState(false);
   
   const [isRecentInfoModalOpen, setIsRecentInfoModalOpen] = useState(false);
@@ -52,10 +52,10 @@ export default function DevProjectUnifierPage() {
   }, [language]);
 
   useEffect(() => {
-    if (isSelectionModalOpen && processedProjects.length === 0 && unsupportedFiles.length === 0) {
+    if (isSelectionModalOpen && processedProjects.length === 0 && otherTypeFiles.length === 0) {
       setIsSelectionModalOpen(false);
     }
-  }, [processedProjects, unsupportedFiles, isSelectionModalOpen]);
+  }, [processedProjects, otherTypeFiles, isSelectionModalOpen]);
 
   const addRecentEntry = useCallback((project: ProjectFile | RecentEntry, customName?: string) => {
     setRecents(prevRecents => {
@@ -144,13 +144,13 @@ export default function DevProjectUnifierPage() {
   }, [processedProjects, isMultiProjectMode, isSelectionModalOpen, projectType, language, addRecentEntry, toast]);
 
 
-  const handleAddUnsupportedFile = useCallback(async (entry: FileSystemFileEntry) => {
+  // Defined inside the component to ensure it always has the latest state in its closure
+  async function handleAddOtherTypeFile(entry: FileSystemFileEntry) {
     if (!entry.isFile) return;
 
-    // Determine the target project ID.
-    // In multi-project mode, it's ambiguous. The best UX is to add it to a new project.
-    // In single-project mode, add it to the currently viewed project.
-    const targetProjectId = (!isMultiProjectMode && processedProjects[currentProjectIndexInModal])
+    // Determine the target project ID. This is the core fix.
+    // It now correctly uses the up-to-date state from the component's render scope.
+    const targetProjectId = (!isMultiProjectMode && processedProjects.length > 0 && processedProjects[currentProjectIndexInModal])
         ? processedProjects[currentProjectIndexInModal].id
         : 'new_project';
 
@@ -158,7 +158,8 @@ export default function DevProjectUnifierPage() {
         const file = await new Promise<File>((resolve, reject) => entry.file(resolve, reject));
         const content = await readFileContent(file);
         handleManualContentAddRequested(file.name, content, targetProjectId);
-        setUnsupportedFiles(prev => prev.filter(f => f.fullPath !== entry.fullPath));
+        // Remove the file from the "other types" list
+        setOtherTypeFiles(prev => prev.filter(f => f.fullPath !== entry.fullPath));
     } catch (error) {
         console.error("Error reading file to add anyway:", error);
         toast({
@@ -167,19 +168,19 @@ export default function DevProjectUnifierPage() {
             variant: "destructive",
         });
     }
-  }, [handleManualContentAddRequested, language, toast, isMultiProjectMode, processedProjects, currentProjectIndexInModal]);
+  }
 
 
   const handleFilesDropped = async (droppedItems: FileSystemFileEntry[]) => {
     if (droppedItems.length === 0) return;
 
     setProcessedProjects([]);
-    setUnsupportedFiles([]);
+    setOtherTypeFiles([]);
 
     try {
-      const { projects, unsupported } = await processDroppedItems(droppedItems, projectType);
+      const { projects, otherFiles } = await processDroppedItems(droppedItems, projectType);
 
-      if (projects.length === 0 && unsupported.length === 0) {
+      if (projects.length === 0 && otherFiles.length === 0) {
         toast({
           title: t('noSupportedFilesFoundToastTitle', language),
           description: t('noSupportedFilesFoundToastDescription', language, { projectType, extensions: PROJECT_CONFIG[projectType].extensions.join(', ') }),
@@ -195,11 +196,11 @@ export default function DevProjectUnifierPage() {
         });
       }
 
-      if (unsupported.length > 0) {
-        setUnsupportedFiles(unsupported);
+      if (otherFiles.length > 0) {
+        setOtherTypeFiles(otherFiles);
       }
       
-      if (projects.length > 0 || unsupported.length > 0) {
+      if (projects.length > 0 || otherFiles.length > 0) {
         setCurrentProjectIndexInModal(0); 
         setIsSelectionModalOpen(true); 
       }
@@ -216,7 +217,7 @@ export default function DevProjectUnifierPage() {
   
   const handleSelectionModalClose = useCallback(() => {
     setIsSelectionModalOpen(false); 
-    setUnsupportedFiles([]);
+    setOtherTypeFiles([]);
 
     if (isMultiProjectMode || processedProjects.length <= 1) {
         setProcessedProjects([]);
@@ -256,7 +257,7 @@ export default function DevProjectUnifierPage() {
       description: t('projectProcessedAndDownloadedToast', language, { projectName: getProjectBaseName(downloadData.fileName.replace('_unificado.txt', '')) }) 
     });
 
-    if (updatedProjects.length === 0 && unsupportedFiles.length === 0) {
+    if (updatedProjects.length === 0 && otherTypeFiles.length === 0) {
         setIsSelectionModalOpen(false);
     } else {
       setIsSelectionModalOpen(true); // Keep modal open if other projects or unsupported files remain
@@ -370,14 +371,14 @@ export default function DevProjectUnifierPage() {
             currentLanguage={language}
         />
       </main>
-      {isSelectionModalOpen && (processedProjects.length > 0 || unsupportedFiles.length > 0) && (
+      {isSelectionModalOpen && (processedProjects.length > 0 || otherTypeFiles.length > 0) && (
         <FileSelectionModal
-          key={`${processedProjects.map(p => p.id).join('-')}-${unsupportedFiles.map(f => f.name).join('-')}-${currentProjectIndexInModal}-${isMultiProjectMode}-${language}`} 
+          key={`${processedProjects.map(p => p.id).join('-')}-${otherTypeFiles.map(f => f.name).join('-')}-${currentProjectIndexInModal}-${isMultiProjectMode}-${language}`} 
           isOpen={isSelectionModalOpen}
           onClose={handleSelectionModalClose} 
           projectsToProcess={processedProjects}
-          unsupportedFiles={unsupportedFiles}
-          onAddUnsupportedFile={handleAddUnsupportedFile}
+          otherTypeFiles={otherTypeFiles}
+          onAddOtherTypeFile={handleAddOtherTypeFile}
           onSingleProjectProcessed={handleSingleProjectProcessed}
           onMultiProjectProcessed={handleMultiProjectProcessed}
           isMultiProjectMode={isMultiProjectMode}

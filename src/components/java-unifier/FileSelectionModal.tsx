@@ -29,8 +29,8 @@ interface FileSelectionModalProps {
   isOpen: boolean;
   onClose: () => void; 
   projectsToProcess: ProjectFile[];
-  unsupportedFiles: FileSystemFileEntry[];
-  onAddUnsupportedFile: (entry: FileSystemFileEntry) => void;
+  otherTypeFiles: FileSystemFileEntry[];
+  onAddOtherTypeFile: (entry: FileSystemFileEntry) => void;
   onSingleProjectProcessed: (projectId: string, downloadData: { fileName: string; content: string }) => void;
   onMultiProjectProcessed: (projectIdsToRemove: string[], downloadData: { fileName: string; content: string }) => void;
   isMultiProjectMode: boolean;
@@ -94,8 +94,8 @@ export function FileSelectionModal({
   isOpen,
   onClose,
   projectsToProcess,
-  unsupportedFiles,
-  onAddUnsupportedFile,
+  otherTypeFiles,
+  onAddOtherTypeFile,
   onSingleProjectProcessed,
   onMultiProjectProcessed,
   isMultiProjectMode,
@@ -432,23 +432,26 @@ export function FileSelectionModal({
               ))}
             </ScrollArea>
             
-            {unsupportedFiles.length > 0 && (
+            {otherTypeFiles.length > 0 && (
               <div className="pt-2 mt-2">
                   <Accordion type="single" collapsible defaultValue="item-1">
                       <AccordionItem value="item-1">
                           <AccordionTrigger className="text-sm font-semibold hover:no-underline p-2 rounded-md hover:bg-secondary">
                               <div className="flex items-center text-yellow-600 dark:text-yellow-400">
                                   <AlertTriangle className="w-4 h-4 mr-2" />
-                                  <span>{t('unsupportedFilesFound', currentLanguage, { count: unsupportedFiles.length })}</span>
+                                  <span>{t('otherFileTypesFound', currentLanguage, { count: otherTypeFiles.length })}</span>
                               </div>
                           </AccordionTrigger>
                           <AccordionContent className="pt-2">
+                              <p className="text-xs text-muted-foreground px-2 pb-2">
+                                {t('otherFileTypesDescription', currentLanguage, { projectType: projectType })}
+                              </p>
                               <ScrollArea className="h-[120px] p-1 border rounded-md">
                                   <div className="space-y-1 pr-2">
-                                      {unsupportedFiles.map(entry => (
+                                      {otherTypeFiles.map(entry => (
                                           <div key={entry.fullPath} className="flex items-center justify-between text-sm py-0.5 px-1 rounded hover:bg-accent/50 group">
                                               <span className="truncate flex-grow" title={entry.name}>{entry.name}</span>
-                                              <Button size="sm" variant="ghost" className="h-7" onClick={() => onAddUnsupportedFile(entry)}>
+                                              <Button size="sm" variant="ghost" className="h-7" onClick={() => onAddOtherTypeFile(entry)}>
                                                   {t('add', currentLanguage)}
                                               </Button>
                                           </div>

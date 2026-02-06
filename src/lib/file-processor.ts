@@ -110,7 +110,7 @@ async function getFileEntriesInDirectory(directory: FileSystemDirectoryEntry): P
 }
 
 
-async function _processZipFile(file: File, projectType: ProjectType): Promise<{ project: ProjectFile | null; unsupported: FileSystemFileEntry[] }> {
+async function _processZipFile(file: File, projectType: ProjectType): Promise<{ project: ProjectFile | null; otherFiles: FileSystemFileEntry[] }> {
     const projectName = getProjectBaseName(file.name);
     const project: ProjectFile = {
         id: `${projectName}-${Date.now()}-${Math.random()}`,
@@ -119,7 +119,7 @@ async function _processZipFile(file: File, projectType: ProjectType): Promise<{ 
         files: [],
         timestamp: Date.now(),
     };
-    const unsupported: FileSystemFileEntry[] = []; // We can't get entries from JSZip, so this will be empty
+    const otherFiles: FileSystemFileEntry[] = []; // We can't get entries from JSZip, so this will be empty
 
     try {
         const zip = await JSZip.loadAsync(file);
@@ -157,7 +157,7 @@ async function _processZipFile(file: File, projectType: ProjectType): Promise<{ 
                     })();
                     fileProcessingPromises.push(promise);
                 }
-                // Cannot generate unsupported toast for zips as we don't have a FileSystemFileEntry
+                // Cannot generate otherFiles toast for zips as we don't have a FileSystemFileEntry
             }
         });
 
@@ -165,19 +165,19 @@ async function _processZipFile(file: File, projectType: ProjectType): Promise<{ 
         project.files.push(...allFiles);
 
         if (project.files.length > 0) {
-            return { project, unsupported };
+            return { project, otherFiles };
         }
 
     } catch (e) {
         console.error(`Failed to process zip file ${file.name}: `, e);
     }
-    return { project: null, unsupported };
+    return { project: null, otherFiles };
 }
 
 
-export async function processDroppedItems(items: FileSystemFileEntry[], projectType: ProjectType): Promise<{ projects: ProjectFile[], unsupported: FileSystemFileEntry[] }> {
+export async function processDroppedItems(items: FileSystemFileEntry[], projectType: ProjectType): Promise<{ projects: ProjectFile[], otherFiles: FileSystemFileEntry[] }> {
   const projects: ProjectFile[] = [];
-  const unsupported: FileSystemFileEntry[] = [];
+  const otherFiles: FileSystemFileEntry[] = [];
   let totalFilesProcessed = 0;
 
   const projectMap = new Map<string, ProjectFile>();
@@ -231,7 +231,7 @@ export async function processDroppedItems(items: FileSystemFileEntry[], projectT
                      }
                  } catch (e) { console.warn(`Could not read file ${fileEntry.name}`, e); }
              } else {
-                 unsupported.push(fileEntry);
+                 otherFiles.push(fileEntry);
              }
         }
 
@@ -263,7 +263,7 @@ export async function processDroppedItems(items: FileSystemFileEntry[], projectT
                  }
              } catch(e) { console.warn(`Could not read file ${item.name}`, e); }
          } else {
-            unsupported.push(item);
+            otherFiles.push(item);
          }
     }
   }
@@ -274,7 +274,7 @@ export async function processDroppedItems(items: FileSystemFileEntry[], projectT
     }
   });
 
-  return { projects, unsupported };
+  return { projects, otherFiles };
 }
 
 

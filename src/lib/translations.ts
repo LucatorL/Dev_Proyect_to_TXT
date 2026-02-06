@@ -50,7 +50,7 @@ export const translations = {
     selectFilesFromProjectTitle: "Select Files from: {projectName}",
     projectPageIndicator: "({currentIndex} of {totalProjects})",
     selectFilesModalDescription: "Select the files to include. Primary files for the project type are selected by default.",
-    onlyUnsupportedFilesDescription: "No supported files were found, but you can add any of the files listed below.",
+    onlyUnsupportedFilesDescription: "No standard files for this project type were found, but you can add any of the files listed below.",
     projectFiles: "Project Files",
     filesFromProject: "Files from: {projectName}",
     currentProjectFallbackName: "Current Project",
@@ -84,7 +84,8 @@ export const translations = {
     couldNotCopy: "Could not copy to clipboard.",
     fileContentCopied: "Content of {fileName} copied.",
     couldNotCopyToClipboard: "Could not copy to clipboard.", 
-    unsupportedFilesFound: "{count} unsupported files found",
+    otherFileTypesFound: "{count} other file types found",
+    otherFileTypesDescription: "These files are not standard for the '{projectType}' project type, but you can add them to the unification process.",
     add: "Add",
 
     // ManualAddContentModal
@@ -109,8 +110,8 @@ export const translations = {
     
     // Toasts in page.tsx
     entryDeletedFromHistoryToast: "Entry deleted from history.", 
-    noSupportedFilesFoundToastTitle: "No supported files found",
-    noSupportedFilesFoundToastDescription: "No supported files for the '{projectType}' project type were found in the provided items.",
+    noSupportedFilesFoundToastTitle: "No standard files found",
+    noSupportedFilesFoundToastDescription: "No standard files for the '{projectType}' project type were found in the provided items.",
     processingErrorToastTitle: "Processing Error",
     processingErrorToastDescription: "An error occurred while processing the files. Check the console for more details.",
     processingErrorToastDescriptionShort: "Could not read file {fileName}.",
@@ -194,7 +195,7 @@ export const translations = {
     selectFilesFromProjectTitle: "Seleccionar Archivos de: {projectName}",
     projectPageIndicator: "({currentIndex} de {totalProjects})",
     selectFilesModalDescription: "Selecciona los archivos a incluir. Los archivos primarios para el tipo de proyecto se seleccionan por defecto.",
-    onlyUnsupportedFilesDescription: "No se encontraron archivos soportados, pero puedes añadir los que se listan abajo.",
+    onlyUnsupportedFilesDescription: "No se encontraron archivos estándar para este tipo de proyecto, pero puedes añadir los que se listan abajo.",
     projectFiles: "Archivos de Proyectos",
     filesFromProject: "Files from: {projectName}",
     currentProjectFallbackName: "Proyecto Actual",
@@ -228,7 +229,8 @@ export const translations = {
     couldNotCopy: "No se pudo copiar al portapapeles.",
     fileContentCopied: "Contenido de {fileName} copiado.",
     couldNotCopyToClipboard: "No se pudo copiar.",
-    unsupportedFilesFound: "{count} archivos no soportados",
+    otherFileTypesFound: "{count} archivos de otros tipos encontrados",
+    otherFileTypesDescription: "Estos archivos no son estándar para el tipo de proyecto '{projectType}', pero puedes añadirlos al proceso de unificación.",
     add: "Añadir",
 
     // ManualAddContentModal
@@ -253,8 +255,8 @@ export const translations = {
 
     // Toasts in page.tsx
     entryDeletedFromHistoryToast: "Entrada eliminada del historial.",
-    noSupportedFilesFoundToastTitle: "Sin archivos soportados",
-    noSupportedFilesFoundToastDescription: "No se encontraron archivos soportados para el tipo de proyecto '{projectType}' en los elementos proporcionados.",
+    noSupportedFilesFoundToastTitle: "Sin archivos estándar",
+    noSupportedFilesFoundToastDescription: "No se encontraron archivos estándar para el tipo de proyecto '{projectType}' en los elementos proporcionados.",
     processingErrorToastTitle: "Error de Procesamiento",
     processingErrorToastDescription: "Ocurrió un error al procesar los archivos. Revisa la consola para más detalles.",
     processingErrorToastDescriptionShort: "No se pudo leer el archivo {fileName}.",
