@@ -76,7 +76,7 @@ export default function DevProjectUnifierPage() {
     toast({ title: t('successToastTitle', language), description: t('entryDeletedFromHistoryToast', language) });
   }, [setRecents, toast, language]);
 
-  const handleManualContentAddRequested = (fileName: string, content: string, targetProjectId: string | 'new_project') => {
+  const handleManualContentAddRequested = useCallback((fileName: string, content: string, targetProjectId: string | 'new_project') => {
     if (!fileName.trim() || !content.trim()) {
       toast({ title: t('error', language), description: t('fileNameEmptyError', language), variant: "destructive" });
       return;
@@ -134,17 +134,17 @@ export default function DevProjectUnifierPage() {
         addRecentEntry(newProject); 
         
         if (!isSelectionModalOpen || (processedProjects.length === 0 && !isMultiProjectMode)) {
-            setCurrentProjectIndexInModal(processedProjects.length); // Go to new project if modal wasn't open or was empty
+            setCurrentProjectIndexInModal(processedProjects.length); 
             setIsSelectionModalOpen(true);
         } else if (!isMultiProjectMode) {
-             setCurrentProjectIndexInModal(processedProjects.length); // Go to the new project
+             setCurrentProjectIndexInModal(processedProjects.length); 
         }
         toast({ title: t('fileAddedToastTitle', language), description: t('fileXAddedAsNewProjectToast', language, { fileName }) });
     }
-  };
+  }, [processedProjects, projectType, language, toast, addRecentEntry, setProcessedProjects, isSelectionModalOpen, isMultiProjectMode, setCurrentProjectIndexInModal, setIsSelectionModalOpen]);
 
 
-  async function handleAddOtherTypeFile(entry: FileSystemFileEntry) {
+  const handleAddOtherTypeFile = useCallback(async (entry: FileSystemFileEntry) => {
     if (!entry.isFile) return;
 
     const targetProjectId = (!isMultiProjectMode && processedProjects.length > 0 && processedProjects[currentProjectIndexInModal])
@@ -165,7 +165,7 @@ export default function DevProjectUnifierPage() {
             variant: "destructive",
         });
     }
-  }
+  }, [isMultiProjectMode, processedProjects, currentProjectIndexInModal, handleManualContentAddRequested, language, toast, setOtherTypeFiles]);
 
 
   const handleFilesDropped = async (droppedItems: FileSystemFileEntry[]) => {
