@@ -38,7 +38,7 @@ const DialogContent = React.forwardRef<
     <DialogOverlay />
     <DialogPrimitive.Content
       ref={ref}
-      onPointerDownOutside={(e) => {
+      onInteractOutside={(e) => {
         if ((e.target as HTMLElement)?.closest('[data-toast-viewport="true"]')) {
           e.preventDefault();
         }
