@@ -6,47 +6,19 @@ import { UploadCloud, FileUp } from 'lucide-react';
 import { Button } from '@/components/ui/button';
 import { useToast } from '@/hooks/use-toast';
 import { t, type Language } from '@/lib/translations';
-import { PROJECT_CONFIG, type ProjectType, getFileExtension, readFileContent } from '@/lib/file-processor';
-import { ToastAction } from "@/components/ui/toast";
+import { type ProjectType } from '@/lib/file-processor';
 
 
 interface FileDropzoneProps {
   onFilesProcessed: (files: FileSystemFileEntry[]) => void;
-  onAddFileManually: (fileName: string, content: string) => void;
   currentLanguage: Language;
   projectType: ProjectType;
 }
 
-function isSupportedFileType(fileName: string, projectType: ProjectType): boolean {
-  const extension = getFileExtension(fileName);
-  return PROJECT_CONFIG[projectType].extensions.includes(extension);
-}
-
-
-export function FileDropzone({ onFilesProcessed, onAddFileManually, currentLanguage, projectType }: FileDropzoneProps) {
+export function FileDropzone({ onFilesProcessed, currentLanguage, projectType }: FileDropzoneProps) {
   const [isDragging, setIsDragging] = useState(false);
   const fileInputRef = useRef<HTMLInputElement>(null);
   const { toast } = useToast();
-
-  const handleAddAnyway = useCallback(async (entry: FileSystemFileEntry) => {
-      if (!entry.isFile) return;
-      try {
-          const file = await new Promise<File>((resolve, reject) => entry.file(resolve, reject));
-          const content = await readFileContent(file);
-          onAddFileManually(file.name, content);
-           toast({
-              title: t('fileAddedToastTitle', currentLanguage),
-              description: t('fileXAddedAsNewProjectToast', currentLanguage, { fileName: file.name })
-           });
-      } catch (error) {
-          console.error("Error reading file to add anyway:", error);
-          toast({
-              title: t('processingErrorToastTitle', currentLanguage),
-              description: t('processingErrorToastDescriptionShort', currentLanguage, { fileName: entry.name }),
-              variant: "destructive",
-          });
-      }
-  }, [onAddFileManually, currentLanguage, toast]);
 
   const handleDragEnter = useCallback((e: React.DragEvent<HTMLDivElement>) => {
     e.preventDefault();
@@ -76,22 +48,14 @@ export function FileDropzone({ onFilesProcessed, onAddFileManually, currentLangu
       for (let i = 0; i < items.length; i++) {
         const entry = items[i].webkitGetAsEntry();
         if (entry) {
-          const lowerName = entry.name.toLowerCase();
-          if (entry.isDirectory || (entry.isFile && (isSupportedFileType(entry.name, projectType) || lowerName.endsWith('.zip')))) {
-            entries.push(entry);
-          } else if (entry.isFile && lowerName.endsWith('.rar')) {
+          if (entry.name.toLowerCase().endsWith('.rar')) {
              toast({
                 title: t('compressedFileNotSupported', currentLanguage),
                 description: t('compressedRarFileDescription', currentLanguage, { fileName: entry.name }),
                 variant: "default",
             });
-          } else if (entry.isFile) { 
-             toast({
-                title: t('unsupportedFileFoundTitle', currentLanguage),
-                description: t('unsupportedFileFoundDescription', currentLanguage, { fileName: entry.name, projectType: projectType }),
-                variant: "default",
-                action: <ToastAction altText={t('addAnywayButton', currentLanguage)} onClick={() => handleAddAnyway(entry)}>{t('addAnywayButton', currentLanguage)}</ToastAction>
-            });
+          } else if (entry.isDirectory || entry.isFile) {
+             entries.push(entry);
           } else { 
              toast({
                 title: t('unsupportedItem', currentLanguage),
@@ -105,7 +69,7 @@ export function FileDropzone({ onFilesProcessed, onAddFileManually, currentLangu
         onFilesProcessed(entries);
       }
     }
-  }, [onFilesProcessed, toast, currentLanguage, projectType, handleAddAnyway]);
+  }, [onFilesProcessed, toast, currentLanguage]);
   
   const createFakeFileEntry = (file: File): FileSystemFileEntry => {
     return {
@@ -133,34 +97,15 @@ export function FileDropzone({ onFilesProcessed, onAddFileManually, currentLangu
     const entriesForProcessing: FileSystemFileEntry[] = [];
 
     for (const file of fileList) {
-        const lowerName = file.name.toLowerCase();
         const fakeEntry = createFakeFileEntry(file);
-
-        if (isSupportedFileType(file.name, projectType) || lowerName.endsWith('.zip')) {
-            entriesForProcessing.push(fakeEntry);
-        } else if (lowerName.endsWith('.rar')) {
+        if (file.name.toLowerCase().endsWith('.rar')) {
             toast({
                 title: t('compressedFileNotSupported', currentLanguage),
                 description: t('compressedRarFileDescription', currentLanguage, { fileName: file.name }),
                 variant: 'default',
             });
         } else {
-            toast({
-                title: t('unsupportedFileFoundTitle', currentLanguage),
-                description: t('unsupportedFileFoundDescription', currentLanguage, {
-                    fileName: file.name,
-                    projectType,
-                }),
-                variant: 'default',
-                action: (
-                    <ToastAction
-                        altText={t('addAnywayButton', currentLanguage)}
-                        onClick={() => handleAddAnyway(fakeEntry)}
-                    >
-                        {t('addAnywayButton', currentLanguage)}
-                    </ToastAction>
-                ),
-            });
+            entriesForProcessing.push(fakeEntry);
         }
     }
 
@@ -171,7 +116,7 @@ export function FileDropzone({ onFilesProcessed, onAddFileManually, currentLangu
     if (fileInputRef.current) {
         fileInputRef.current.value = "";
     }
-  }, [onFilesProcessed, handleAddAnyway, toast, currentLanguage, projectType]);
+  }, [onFilesProcessed, toast, currentLanguage]);
   
   const openFileDialog = () => {
     if (fileInputRef.current) {

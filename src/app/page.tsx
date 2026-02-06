@@ -10,9 +10,10 @@ import { RecentFilesList } from '@/components/java-unifier/RecentFilesList';
 import { FileSelectionModal } from '@/components/java-unifier/FileSelectionModal';
 import useLocalStorage from '@/hooks/useLocalStorage';
 import type { ProjectFile, RecentEntry, ProcessedFile } from '@/types/java-unifier';
-import { processDroppedItems, unifyProjectFiles, downloadTextFile, getProjectBaseName, getFileExtension, extractJavaPackageName, type ProjectType, PROJECT_CONFIG } from '@/lib/file-processor';
+import { processDroppedItems, unifyProjectFiles, downloadTextFile, getProjectBaseName, getFileExtension, extractJavaPackageName, type ProjectType, PROJECT_CONFIG, readFileContent } from '@/lib/file-processor';
 import { DEFAULT_PACKAGE_NAME_LOGIC, OTHER_FILES_PACKAGE_NAME_LOGIC, t, type Language } from '@/lib/translations';
 import { useToast } from "@/hooks/use-toast";
+import { ToastAction } from "@/components/ui/toast";
 import {
   AlertDialog,
   AlertDialogAction,
@@ -76,12 +77,98 @@ export default function DevProjectUnifierPage() {
     toast({ title: t('successToastTitle', language), description: t('entryDeletedFromHistoryToast', language) });
   }, [setRecents, toast, language]);
 
+  const handleManualContentAddRequested = useCallback((fileName: string, content: string, targetProjectId: string | 'new_project') => {
+    if (!fileName.trim() || !content.trim()) {
+      toast({ title: t('error', language), description: t('fileNameEmptyError', language), variant: "destructive" });
+      return;
+    }
+
+    const fileType = getFileExtension(fileName);
+    let packageName = fileType === 'java' ? extractJavaPackageName(content) : OTHER_FILES_PACKAGE_NAME_LOGIC;
+    if (packageName === '' && fileType === 'java') packageName = DEFAULT_PACKAGE_NAME_LOGIC;
+
+    const uniqueFileId = `manual-file-${Date.now()}-${Math.random()}`;
+
+    if (targetProjectId !== 'new_project' && processedProjects.some(p => p.id === targetProjectId)) {
+        setProcessedProjects(prevProjects => 
+            prevProjects.map(proj => {
+                if (proj.id === targetProjectId) {
+                    const newFile: ProcessedFile = {
+                        id: uniqueFileId,
+                        path: fileName, 
+                        name: fileName,
+                        content,
+                        packageName,
+                        fileType,
+                        projectName: proj.name, 
+                        selected: PROJECT_CONFIG[projectType].defaultSelected.includes(fileType),
+                    };
+                    const updatedProject = { ...proj, files: [...proj.files, newFile], timestamp: Date.now() };
+                    addRecentEntry(updatedProject);
+                    toast({ title: t('fileAddedToastTitle', language), description: t('fileXAddedToYToast', language, { fileName, projectName: proj.name }) });
+                    return updatedProject;
+                }
+                return proj;
+            })
+        );
+    } else {
+        const newProjectName = `Manual: ${getProjectBaseName(fileName) || 'Archivo'}`;
+        const newFile: ProcessedFile = {
+            id: uniqueFileId,
+            path: fileName,
+            name: fileName,
+            content,
+            packageName,
+            fileType,
+            projectName: newProjectName,
+            selected: PROJECT_CONFIG[projectType].defaultSelected.includes(fileType),
+        };
+        const newProject: ProjectFile = {
+            id: `manual-project-${Date.now()}-${Math.random()}`,
+            name: newProjectName,
+            type: 'file', 
+            files: [newFile],
+            timestamp: Date.now(),
+        };
+
+        setProcessedProjects(prevProjects => [...prevProjects, newProject]);
+        addRecentEntry(newProject); 
+        
+        if (!isSelectionModalOpen || (processedProjects.length === 0 && !isMultiProjectMode)) {
+            setCurrentProjectIndexInModal(processedProjects.length); // Go to new project if modal wasn't open or was empty
+            setIsSelectionModalOpen(true);
+        } else if (!isMultiProjectMode) {
+             setCurrentProjectIndexInModal(processedProjects.length); // Go to the new project
+        }
+        toast({ title: t('fileAddedToastTitle', language), description: t('fileXAddedAsNewProjectToast', language, { fileName }) });
+    }
+  }, [processedProjects, isMultiProjectMode, isSelectionModalOpen, projectType, language, addRecentEntry, toast]);
+
+
+  const handleAddUnsupportedFile = useCallback(async (entry: FileSystemFileEntry) => {
+    if (!entry.isFile) return;
+    try {
+        const file = await new Promise<File>((resolve, reject) => entry.file(resolve, reject));
+        const content = await readFileContent(file);
+        handleManualContentAddRequested(file.name, content, 'new_project');
+    } catch (error) {
+        console.error("Error reading file to add anyway:", error);
+        toast({
+            title: t('processingErrorToastTitle', language),
+            description: t('processingErrorToastDescriptionShort', language, { fileName: entry.name }),
+            variant: "destructive",
+        });
+    }
+  }, [handleManualContentAddRequested, language, toast]);
+
+
   const handleFilesDropped = async (droppedItems: FileSystemFileEntry[]) => {
     if (droppedItems.length === 0) return;
 
     try {
-      const projects = await processDroppedItems(droppedItems, projectType);
-      if (projects.length === 0 || projects.every(p => p.files.length === 0)) {
+      const { projects, unsupported } = await processDroppedItems(droppedItems, projectType);
+
+      if (projects.length === 0 && unsupported.length === 0) {
         toast({
           title: t('noSupportedFilesFoundToastTitle', language),
           description: t('noSupportedFilesFoundToastDescription', language, { projectType, extensions: PROJECT_CONFIG[projectType].extensions.join(', ') }),
@@ -90,17 +177,24 @@ export default function DevProjectUnifierPage() {
         return;
       }
       
-      setProcessedProjects(projects); 
-      
-      projects.forEach(proj => {
-        if(proj.files.length > 0) addRecentEntry(proj);
-      });
-      
-      setCurrentProjectIndexInModal(0); 
-      
       if (projects.length > 0) {
+        setProcessedProjects(projects); 
+        projects.forEach(proj => {
+          if(proj.files.length > 0) addRecentEntry(proj);
+        });
+        setCurrentProjectIndexInModal(0); 
         setIsSelectionModalOpen(true); 
       }
+
+      unsupported.forEach(entry => {
+        toast({
+          title: t('unsupportedFileFoundTitle', language),
+          description: t('unsupportedFileFoundDescription', language, { fileName: entry.name, projectType: projectType }),
+          variant: "default",
+          duration: 10000,
+          action: <ToastAction altText={t('addAnywayButton', language)} onClick={() => handleAddUnsupportedFile(entry)}>{t('addAnywayButton', language)}</ToastAction>
+        });
+      });
 
     } catch (error) {
       console.error("Error processing files:", error);
@@ -186,76 +280,10 @@ export default function DevProjectUnifierPage() {
     setIsSelectionModalOpen(false); 
   };
 
-  const handleManualContentAddRequested = (fileName: string, content: string, targetProjectId: string | 'new_project') => {
-    if (!fileName.trim() || !content.trim()) {
-      toast({ title: t('error', language), description: t('fileNameEmptyError', language), variant: "destructive" });
-      return;
-    }
-
-    const fileType = getFileExtension(fileName);
-    let packageName = fileType === 'java' ? extractJavaPackageName(content) : OTHER_FILES_PACKAGE_NAME_LOGIC;
-    if (packageName === '' && fileType === 'java') packageName = DEFAULT_PACKAGE_NAME_LOGIC;
-
-    const uniqueFileId = `manual-file-${Date.now()}-${Math.random()}`;
-
-    if (targetProjectId !== 'new_project' && processedProjects.some(p => p.id === targetProjectId)) {
-        setProcessedProjects(prevProjects => 
-            prevProjects.map(proj => {
-                if (proj.id === targetProjectId) {
-                    const newFile: ProcessedFile = {
-                        id: uniqueFileId,
-                        path: fileName, 
-                        name: fileName,
-                        content,
-                        packageName,
-                        fileType,
-                        projectName: proj.name, 
-                        selected: PROJECT_CONFIG[projectType].defaultSelected.includes(fileType),
-                    };
-                    const updatedProject = { ...proj, files: [...proj.files, newFile], timestamp: Date.now() };
-                    addRecentEntry(updatedProject);
-                    toast({ title: t('fileAddedToastTitle', language), description: t('fileXAddedToYToast', language, { fileName, projectName: proj.name }) });
-                    return updatedProject;
-                }
-                return proj;
-            })
-        );
-    } else {
-        const newProjectName = `Manual: ${getProjectBaseName(fileName) || 'Archivo'}`;
-        const newFile: ProcessedFile = {
-            id: uniqueFileId,
-            path: fileName,
-            name: fileName,
-            content,
-            packageName,
-            fileType,
-            projectName: newProjectName,
-            selected: PROJECT_CONFIG[projectType].defaultSelected.includes(fileType),
-        };
-        const newProject: ProjectFile = {
-            id: `manual-project-${Date.now()}-${Math.random()}`,
-            name: newProjectName,
-            type: 'file', 
-            files: [newFile],
-            timestamp: Date.now(),
-        };
-
-        setProcessedProjects(prevProjects => [...prevProjects, newProject]);
-        addRecentEntry(newProject); 
-        
-        if (!isSelectionModalOpen || (processedProjects.length === 0 && !isMultiProjectMode)) {
-            setCurrentProjectIndexInModal(processedProjects.length); // Go to new project if modal wasn't open or was empty
-            setIsSelectionModalOpen(true);
-        } else if (!isMultiProjectMode) {
-             setCurrentProjectIndexInModal(processedProjects.length); // Go to the new project
-        }
-        toast({ title: t('fileAddedToastTitle', language), description: t('fileXAddedAsNewProjectToast', language, { fileName }) });
-    }
-  };
 
   const handleAddFileManuallyWrapper = useCallback((fileName: string, content: string) => {
     handleManualContentAddRequested(fileName, content, 'new_project');
-  }, [language, isMultiProjectMode, processedProjects, isSelectionModalOpen]);
+  }, [handleManualContentAddRequested]);
 
 
   const handleSelectRecent = (recent: RecentEntry) => {
@@ -325,7 +353,6 @@ export default function DevProjectUnifierPage() {
           onFilesProcessed={handleFilesDropped} 
           currentLanguage={language} 
           projectType={projectType} 
-          onAddFileManually={handleAddFileManuallyWrapper}
         />
         <RecentFilesList 
             recents={recents} 
@@ -428,5 +455,3 @@ export default function DevProjectUnifierPage() {
     </div>
   );
 }
-
-    

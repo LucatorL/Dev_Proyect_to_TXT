@@ -76,7 +76,41 @@ function isSupportedFile(fileName: string, projectType: ProjectType): boolean {
   return PROJECT_CONFIG[projectType].extensions.includes(extension);
 }
 
-async function _processZipFile(file: File, projectType: ProjectType): Promise<ProjectFile | null> {
+async function getFileEntriesInDirectory(directory: FileSystemDirectoryEntry): Promise<FileSystemFileEntry[]> {
+  const fileEntries: FileSystemFileEntry[] = [];
+  const reader = directory.createReader();
+
+  return new Promise<FileSystemFileEntry[]>((resolve, reject) => {
+    const readEntries = () => {
+      reader.readEntries(async (entries) => {
+        if (entries.length === 0) {
+          resolve(fileEntries);
+          return;
+        }
+        for (const entry of entries) {
+          if (entry.isFile) {
+            // Add webkitRelativePath polyfill for files from manual selection
+            const file = await new Promise<File>((res) => (entry as FileSystemFileEntry).file(res));
+            if (!(file as any).webkitRelativePath) { 
+                Object.defineProperty(file, 'webkitRelativePath', { 
+                    value: entry.fullPath.startsWith('/') ? entry.fullPath.substring(1) : entry.fullPath,
+                    writable: true 
+                });
+            }
+            fileEntries.push(entry as FileSystemFileEntry);
+          } else if (entry.isDirectory) {
+            fileEntries.push(...await getFileEntriesInDirectory(entry as FileSystemDirectoryEntry));
+          }
+        }
+        readEntries();
+      }, reject);
+    };
+    readEntries();
+  });
+}
+
+
+async function _processZipFile(file: File, projectType: ProjectType): Promise<{ project: ProjectFile | null; unsupported: FileSystemFileEntry[] }> {
     const projectName = getProjectBaseName(file.name);
     const project: ProjectFile = {
         id: `${projectName}-${Date.now()}-${Math.random()}`,
@@ -85,6 +119,7 @@ async function _processZipFile(file: File, projectType: ProjectType): Promise<Pr
         files: [],
         timestamp: Date.now(),
     };
+    const unsupported: FileSystemFileEntry[] = []; // We can't get entries from JSZip, so this will be empty
 
     try {
         const zip = await JSZip.loadAsync(file);
@@ -98,16 +133,14 @@ async function _processZipFile(file: File, projectType: ProjectType): Promise<Pr
                     const promise = (async () => {
                         try {
                             const content = await zipEntry.async('string');
-                            
                             if (new Blob([content]).size > MAX_FILE_SIZE) {
                                 console.warn(`File ${fileName} in zip exceeds size limit and was skipped.`);
                                 return null;
                             }
-
                             const fileType = getFileExtension(fileName);
                             const { path, packageName } = parseFileMeta(zipEntry.name, content, fileType, projectType);
 
-                            const processedFile: ProcessedFile = {
+                            return {
                                 id: `${project.id}-${path}-${fileName}-${Math.random()}`,
                                 path: path,
                                 name: fileName,
@@ -117,7 +150,6 @@ async function _processZipFile(file: File, projectType: ProjectType): Promise<Pr
                                 projectName: project.name,
                                 selected: PROJECT_CONFIG[projectType].defaultSelected.includes(fileType),
                             };
-                            return processedFile;
                         } catch (readError) {
                             console.warn(`Could not read file ${fileName} from zip:`, readError);
                             return null;
@@ -125,163 +157,124 @@ async function _processZipFile(file: File, projectType: ProjectType): Promise<Pr
                     })();
                     fileProcessingPromises.push(promise);
                 }
+                // Cannot generate unsupported toast for zips as we don't have a FileSystemFileEntry
             }
         });
 
         const allFiles = (await Promise.all(fileProcessingPromises)).filter((f): f is ProcessedFile => f !== null);
-        
         project.files.push(...allFiles);
 
         if (project.files.length > 0) {
-            return project;
+            return { project, unsupported };
         }
 
     } catch (e) {
         console.error(`Failed to process zip file ${file.name}: `, e);
     }
-
-    return null;
+    return { project: null, unsupported };
 }
 
 
-export async function processDroppedItems(items: FileSystemFileEntry[], projectType: ProjectType): Promise<ProjectFile[]> {
+export async function processDroppedItems(items: FileSystemFileEntry[], projectType: ProjectType): Promise<{ projects: ProjectFile[], unsupported: FileSystemFileEntry[] }> {
   const projects: ProjectFile[] = [];
+  const unsupported: FileSystemFileEntry[] = [];
   let totalFilesProcessed = 0;
+
+  const projectMap = new Map<string, ProjectFile>();
 
   for (const item of items) {
     if (totalFilesProcessed >= MAX_TOTAL_FILES) {
-        console.warn(`Reached maximum file processing limit (${MAX_TOTAL_FILES}). Some files may not have been processed.`);
+        console.warn(`Reached maximum file processing limit (${MAX_TOTAL_FILES}).`);
         break;
     }
 
-    const isZipFile = item.name.toLowerCase().endsWith('.zip');
-    if (isZipFile && item.isFile) {
+    if (item.isFile && item.name.toLowerCase().endsWith('.zip')) {
         try {
-            const file = await new Promise<File>((resolve, reject) => (item as FileSystemFileEntry).file(resolve, reject));
-            const zipProject = await _processZipFile(file, projectType);
+            const file = await new Promise<File>((resolve, reject) => item.file(resolve, reject));
+            const { project: zipProject } = await _processZipFile(file, projectType);
             if(zipProject && zipProject.files.length > 0) {
                 projects.push(zipProject);
                 totalFilesProcessed += zipProject.files.length;
             }
         } catch (e) {
-            console.error(`Error processing dropped zip item ${item.name}:`, e);
+            console.error(`Error processing zip item ${item.name}:`, e);
         }
-        continue; // Move to next item
-    }
-
-
-    const projectName = getProjectBaseName(item.name);
-    const project: ProjectFile = {
-      id: `${projectName}-${Date.now()}-${Math.random()}`,
-      name: projectName,
-      type: item.isDirectory ? 'folder' : 'file',
-      files: [],
-      timestamp: Date.now(),
-    };
-
-    if (item.isDirectory) {
-      const filesInDir = await getFilesInDirectory(item as FileSystemDirectoryEntry);
-      for (const file of filesInDir) { 
-        if (totalFilesProcessed >= MAX_TOTAL_FILES) break;
-        
-        const fileType = getFileExtension(file.name);
-        if (isSupportedFile(file.name, projectType) && file.size <= MAX_FILE_SIZE) {
-          try {
-            const content = await readFileContent(file);
-            const filePathForMeta = (file as any).webkitRelativePath || file.name;
-            const { path, packageName } = parseFileMeta(filePathForMeta, content, fileType, projectType);
-            
-            project.files.push({
-              id: `${project.id}-${path}-${file.name}-${Math.random()}`, 
-              path,
-              name: file.name,
-              content,
-              packageName,
-              fileType,
-              projectName: project.name,
-              selected: PROJECT_CONFIG[projectType].defaultSelected.includes(fileType),
-            });
-            totalFilesProcessed++;
-          } catch (error) {
-            console.warn(`Could not read file ${file.name}:`, error);
-          }
-        } else if (isSupportedFile(file.name, projectType) && file.size > MAX_FILE_SIZE) {
-            console.warn(`File ${file.name} exceeds size limit (${MAX_FILE_SIZE} bytes) and was skipped.`);
+    } else if (item.isDirectory) {
+        const fileEntries = await getFileEntriesInDirectory(item as FileSystemDirectoryEntry);
+        const projectName = getProjectBaseName(item.name);
+        let project = projectMap.get(projectName);
+        if (!project) {
+            project = {
+                id: `${projectName}-${Date.now()}-${Math.random()}`,
+                name: projectName, type: 'folder', files: [], timestamp: Date.now(),
+            };
+            projectMap.set(projectName, project);
         }
-      }
-    } else if (item.isFile && isSupportedFile(item.name, projectType)) {
-      const filePromise = new Promise<File>((resolve, reject) => (item as FileSystemFileEntry).file(resolve, reject));
-      try {
-        const file = await filePromise;
-        const fileType = getFileExtension(file.name);
-        if (file.size <= MAX_FILE_SIZE && totalFilesProcessed < MAX_TOTAL_FILES) {
-          const content = await readFileContent(file);
-          const { path, packageName } = parseFileMeta(file.name, content, fileType, projectType);
-          project.files.push({
-            id: `${project.id}-${path}-${file.name}-${Math.random()}`,
-            path, 
-            name: file.name,
-            content,
-            packageName,
-            fileType,
-            projectName: project.name,
-            selected: PROJECT_CONFIG[projectType].defaultSelected.includes(fileType),
-          });
-          totalFilesProcessed++;
-        } else if (file.size > MAX_FILE_SIZE) {
-          console.warn(`File ${file.name} exceeds size limit (${MAX_FILE_SIZE} bytes) and was skipped.`);
+
+        for (const fileEntry of fileEntries) {
+             if (isSupportedFile(fileEntry.name, projectType)) {
+                 try {
+                     const file = await new Promise<File>((res) => fileEntry.file(res));
+                     if (file.size <= MAX_FILE_SIZE) {
+                         const content = await readFileContent(file);
+                         const filePathForMeta = (file as any).webkitRelativePath || fileEntry.fullPath;
+                         const fileType = getFileExtension(file.name);
+                         const { path, packageName } = parseFileMeta(filePathForMeta, content, fileType, projectType);
+                         
+                         project.files.push({
+                           id: `${project.id}-${path}-${file.name}-${Math.random()}`, 
+                           path, name: file.name, content, packageName, fileType,
+                           projectName: project.name,
+                           selected: PROJECT_CONFIG[projectType].defaultSelected.includes(fileType),
+                         });
+                         totalFilesProcessed++;
+                     }
+                 } catch (e) { console.warn(`Could not read file ${fileEntry.name}`, e); }
+             } else {
+                 unsupported.push(fileEntry);
+             }
         }
-      } catch (error) {
-        console.warn(`Could not read file ${item.name}:`, error);
-      }
-    }
-    
-    if (project.files.length > 0) {
-      projects.push(project);
+
+    } else if (item.isFile) {
+         if (isSupportedFile(item.name, projectType)) {
+             try {
+                 const file = await new Promise<File>((res) => item.file(res));
+                 if (file.size <= MAX_FILE_SIZE) {
+                    const projectName = getProjectBaseName(item.name);
+                    let project = projectMap.get(projectName);
+                     if (!project) {
+                        project = {
+                           id: `${projectName}-${Date.now()}-${Math.random()}`,
+                           name: projectName, type: 'file', files: [], timestamp: Date.now(),
+                        };
+                        projectMap.set(projectName, project);
+                     }
+                     const content = await readFileContent(file);
+                     const fileType = getFileExtension(file.name);
+                     const { path, packageName } = parseFileMeta(file.name, content, fileType, projectType);
+
+                     project.files.push({
+                       id: `${project.id}-${path}-${file.name}-${Math.random()}`,
+                       path, name: file.name, content, packageName, fileType,
+                       projectName: project.name,
+                       selected: PROJECT_CONFIG[projectType].defaultSelected.includes(fileType),
+                     });
+                     totalFilesProcessed++;
+                 }
+             } catch(e) { console.warn(`Could not read file ${item.name}`, e); }
+         } else {
+            unsupported.push(item);
+         }
     }
   }
-  return projects;
-}
 
-async function getFilesInDirectory(directory: FileSystemDirectoryEntry): Promise<File[]> {
-  const files: File[] = [];
-  const reader = directory.createReader();
-
-  return new Promise<File[]>((resolve, reject) => {
-    const readEntries = () => {
-      reader.readEntries(async (entries) => {
-        if (entries.length === 0) {
-          resolve(files);
-          return;
-        }
-        for (const entry of entries) {
-          if (entry.isFile) {
-            const fileEntry = entry as FileSystemFileEntry;
-            try {
-                const file = await new Promise<File>((res, rej) => fileEntry.file(res, rej));
-                if (!(file as any).webkitRelativePath) { 
-                    Object.defineProperty(file, 'webkitRelativePath', { 
-                        value: entry.fullPath.startsWith('/') ? entry.fullPath.substring(1) : entry.fullPath,
-                        writable: true 
-                    });
-                }
-                files.push(file);
-            } catch (fileError) {
-                console.warn(`Could not access file ${entry.name}:`, fileError);
-            }
-          } else if (entry.isDirectory) {
-            try {
-                files.push(...await getFilesInDirectory(entry as FileSystemDirectoryEntry));
-            } catch (dirError){
-                 console.warn(`Could not read directory ${entry.name}:`, dirError);
-            }
-          }
-        }
-        readEntries(); 
-      }, reject); 
-    };
-    readEntries();
+  projectMap.forEach(proj => {
+    if (proj.files.length > 0) {
+      projects.push(proj);
+    }
   });
+
+  return { projects, unsupported };
 }
 
 
