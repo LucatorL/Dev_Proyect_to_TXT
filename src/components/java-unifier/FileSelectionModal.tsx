@@ -115,6 +115,16 @@ export function FileSelectionModal({
   const [isManualAddModalOpen, setIsManualAddModalOpen] = useState(false);
   const [commentOption, setCommentOption] = useState<CommentOption>('default');
 
+  const getCommentOptionText = useCallback((option: CommentOption) => {
+    switch (option) {
+        case 'default': return t('commentHandlingDefault', currentLanguage);
+        case 'noAppComments': return t('commentHandlingNoIdentifiers', currentLanguage);
+        case 'removePastAppComments': return t('commentHandlingRemovePast', currentLanguage);
+        case 'removeAllComments': return t('commentHandlingRemoveAll', currentLanguage);
+        default: return '';
+    }
+  }, [currentLanguage]);
+
   useEffect(() => {
     setCurrentDisplayProjects(projectsToProcess);
     if (projectsToProcess.length > 0) {
@@ -515,7 +525,7 @@ export function FileSelectionModal({
             <Label htmlFor="comment-options" className="text-xs text-muted-foreground">{t('commentHandling', currentLanguage)}</Label>
             <Select value={commentOption} onValueChange={(value: CommentOption) => setCommentOption(value)}>
               <SelectTrigger id="comment-options" className="w-full md:w-[320px] mt-1">
-                <SelectValue />
+                <span>{getCommentOptionText(commentOption)}</span>
               </SelectTrigger>
               <SelectContent>
                 <SelectItem value="default">{t('commentHandlingDefault', currentLanguage)}</SelectItem>
