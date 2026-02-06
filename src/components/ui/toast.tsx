@@ -18,9 +18,10 @@ const ToastViewport = React.forwardRef<
     ref={ref}
     data-toast-viewport="true"
     className={cn(
-      "fixed top-0 z-[9999] flex max-h-screen w-full flex-col-reverse p-4 sm:bottom-0 sm:right-0 sm:top-auto sm:flex-col md:max-w-[420px]",
+      "fixed top-0 flex max-h-screen w-full flex-col-reverse p-4 sm:bottom-0 sm:right-0 sm:top-auto sm:flex-col md:max-w-[420px]",
       className
     )}
+    style={{ zIndex: 2147483647 }} // Force it to the top layer
     {...props}
   />
 ))
