@@ -183,6 +183,24 @@ export function FileSelectionModal({
       )
     );
   };
+  
+  const handleSelectSpecificFiles = useCallback((extensions: string[]) => {
+    const targetProjectIds = isMultiProjectMode 
+      ? currentDisplayProjects.map(p => p.id) 
+      : (currentDisplayProjects[currentProjectIndex] ? [currentDisplayProjects[currentProjectIndex].id] : []);
+
+    setCurrentDisplayProjects(prevProjects =>
+      prevProjects.map(proj =>
+        targetProjectIds.includes(proj.id)
+          ? {
+              ...proj,
+              files: proj.files.map(file => ({ ...file, selected: extensions.includes(file.fileType) })),
+            }
+          : proj
+      )
+    );
+  }, [isMultiProjectMode, currentDisplayProjects, currentProjectIndex]);
+
 
   const handleConfirmAndSave = () => {
     let finalOutputFileName: string;
@@ -347,7 +365,17 @@ export function FileSelectionModal({
                 {isMultiProjectMode ? t('projectFiles', currentLanguage) : t('filesFromProject', currentLanguage, { projectName: currentDisplayProjects[currentProjectIndex]?.name || t('currentProjectFallbackName', currentLanguage) })}
               </Label>
               <div className="space-x-1">
-                 <Button variant="ghost" size="sm" onClick={() => handleSelectAllInVisibleProjects(true)} title={t('selectAll', currentLanguage)}>
+                 {projectType === 'java' && (
+                    <Button variant="ghost" size="sm" onClick={() => handleSelectSpecificFiles(['java', 'kt'])} title={t('onlyJava', currentLanguage)}>
+                        <FileCode className="w-4 h-4 text-blue-500" /> {t('onlyJava', currentLanguage)}
+                    </Button>
+                 )}
+                 {projectType === 'web' && (
+                    <Button variant="ghost" size="sm" onClick={() => handleSelectSpecificFiles(['html', 'css', 'scss', 'js', 'ts', 'jsx', 'tsx'])} title={t('onlyWebCore', currentLanguage)}>
+                        <Globe className="w-4 h-4 text-orange-600" /> {t('onlyWebCore', currentLanguage)}
+                    </Button>
+                 )}
+                <Button variant="ghost" size="sm" onClick={() => handleSelectAllInVisibleProjects(true)} title={t('selectAll', currentLanguage)}>
                   <CheckSquare className="w-4 h-4" /> {t('selectAll', currentLanguage)}
                 </Button>
                 <Button variant="ghost" size="sm" onClick={() => handleSelectAllInVisibleProjects(false)} title={t('deselectAll', currentLanguage)}>
