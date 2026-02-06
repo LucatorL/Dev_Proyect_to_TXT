@@ -437,8 +437,8 @@ export function FileSelectionModal({
                   <Tooltip>
                     <TooltipTrigger asChild>
                       <span className="ml-1.5 text-xs text-muted-foreground flex items-center cursor-default">
-                        {t('approxTokens', currentLanguage, { tokenCount: estimatedTokens })}
-                        <Info className="w-3 h-3 ml-1" />)
+                        {t('approxTokens', currentLanguage, { tokenCount: new Intl.NumberFormat(currentLanguage === 'es' ? 'es-ES' : 'en-US').format(estimatedTokens) })}
+                        <Info className="w-3 h-3 ml-1" />
                       </span>
                     </TooltipTrigger>
                     <TooltipContent side="top" className="max-w-xs p-2">
