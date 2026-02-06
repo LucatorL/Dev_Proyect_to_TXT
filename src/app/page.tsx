@@ -76,7 +76,7 @@ export default function DevProjectUnifierPage() {
     toast({ title: t('successToastTitle', language), description: t('entryDeletedFromHistoryToast', language) });
   }, [setRecents, toast, language]);
 
-  const handleManualContentAddRequested = useCallback((fileName: string, content: string, targetProjectId: string | 'new_project') => {
+  const handleManualContentAddRequested = (fileName: string, content: string, targetProjectId: string | 'new_project') => {
     if (!fileName.trim() || !content.trim()) {
       toast({ title: t('error', language), description: t('fileNameEmptyError', language), variant: "destructive" });
       return;
@@ -142,9 +142,9 @@ export default function DevProjectUnifierPage() {
         return [...prevProjects, newProject];
       }
     });
-  }, [projectType, language, toast, addRecentEntry, setProcessedProjects, isSelectionModalOpen, setIsSelectionModalOpen, setCurrentProjectIndexInModal]);
+  };
 
-  const handleAddOtherTypeFile = useCallback(async (entry: FileSystemFileEntry, targetProjectId: string | 'new_project') => {
+  const handleAddOtherTypeFile = async (entry: FileSystemFileEntry, targetProjectId: string | 'new_project') => {
     if (!entry.isFile) return;
 
     try {
@@ -160,7 +160,7 @@ export default function DevProjectUnifierPage() {
             variant: "destructive",
         });
     }
-  }, [handleManualContentAddRequested, language, toast]);
+  };
 
 
   const handleFilesDropped = async (droppedItems: FileSystemFileEntry[]) => {
