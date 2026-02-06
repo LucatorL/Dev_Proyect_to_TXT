@@ -76,7 +76,7 @@ export default function DevProjectUnifierPage() {
     toast({ title: t('successToastTitle', language), description: t('entryDeletedFromHistoryToast', language) });
   }, [setRecents, toast, language]);
 
-  const handleManualContentAddRequested = useCallback((fileName: string, content: string, targetProjectId: string | 'new_project') => {
+  const handleManualContentAddRequested = (fileName: string, content: string, targetProjectId: string | 'new_project') => {
     if (!fileName.trim() || !content.trim()) {
       toast({ title: t('error', language), description: t('fileNameEmptyError', language), variant: "destructive" });
       return;
@@ -141,15 +141,12 @@ export default function DevProjectUnifierPage() {
         }
         toast({ title: t('fileAddedToastTitle', language), description: t('fileXAddedAsNewProjectToast', language, { fileName }) });
     }
-  }, [processedProjects, isMultiProjectMode, isSelectionModalOpen, projectType, language, addRecentEntry, toast]);
+  };
 
 
-  // Defined inside the component to ensure it always has the latest state in its closure
   async function handleAddOtherTypeFile(entry: FileSystemFileEntry) {
     if (!entry.isFile) return;
 
-    // Determine the target project ID. This is the core fix.
-    // It now correctly uses the up-to-date state from the component's render scope.
     const targetProjectId = (!isMultiProjectMode && processedProjects.length > 0 && processedProjects[currentProjectIndexInModal])
         ? processedProjects[currentProjectIndexInModal].id
         : 'new_project';
@@ -289,11 +286,6 @@ export default function DevProjectUnifierPage() {
     toast({ title: t('successToastTitle', language), description: t('fileDownloadedToast', language, { fileName: downloadData.fileName }) });
     setIsSelectionModalOpen(false); 
   };
-
-
-  const handleAddFileManuallyWrapper = useCallback((fileName: string, content: string) => {
-    handleManualContentAddRequested(fileName, content, 'new_project');
-  }, [handleManualContentAddRequested]);
 
 
   const handleSelectRecent = (recent: RecentEntry) => {
