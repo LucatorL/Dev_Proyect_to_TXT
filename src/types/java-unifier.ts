@@ -16,6 +16,7 @@ export interface ProjectFile {
   name: string; // Original file/folder name (e.g., MyProject, project.zip)
   type: 'folder' | 'file'; // Type of the root item (folder or a single .java file)
   files: ProcessedFile[]; // List of found/processed files
+  otherFiles?: FileSystemFileEntry[]; // For files that don't match the current projectType
   timestamp: number; // Timestamp of processing
 }
 
@@ -35,8 +36,7 @@ export interface ProjectGroup {
   projectName: string;
   projectActualId: string; // Added to uniquely identify project for checkbox changes
   packages: PackageGroup[];
+  otherFiles?: FileSystemFileEntry[];
 }
 
 export type UnifiedData = ProjectGroup[];
-
-    

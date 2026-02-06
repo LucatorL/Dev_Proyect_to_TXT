@@ -29,8 +29,7 @@ interface FileSelectionModalProps {
   isOpen: boolean;
   onClose: () => void; 
   projectsToProcess: ProjectFile[];
-  otherTypeFiles: FileSystemFileEntry[];
-  onAddOtherTypeFile: (entry: FileSystemFileEntry, targetProjectId: string | 'new_project') => void;
+  onAddOtherTypeFile: (entry: FileSystemFileEntry, targetProjectId: string) => void;
   onSingleProjectProcessed: (projectId: string, downloadData: { fileName: string; content: string }) => void;
   onMultiProjectProcessed: (projectIdsToRemove: string[], downloadData: { fileName: string; content: string }) => void;
   isMultiProjectMode: boolean;
@@ -94,7 +93,6 @@ export function FileSelectionModal({
   isOpen,
   onClose,
   projectsToProcess,
-  otherTypeFiles,
   onAddOtherTypeFile,
   onSingleProjectProcessed,
   onMultiProjectProcessed,
@@ -289,7 +287,7 @@ export function FileSelectionModal({
           files: filesInPkg.sort((a,b) => a.name.localeCompare(b.name)),
         }));
       
-      return { projectName: project.name, projectActualId: project.id, packages };
+      return { projectName: project.name, projectActualId: project.id, packages, otherFiles: project.otherFiles };
     });
   }, [projectsForListDisplay]);
 
@@ -324,6 +322,7 @@ export function FileSelectionModal({
   return (
     <Dialog open={isOpen} onOpenChange={(open) => { if(!open) onClose(); }}>
       <DialogContent onInteractOutside={(e) => {
+        // Prevent closing modal when interacting with toasts
         if ((e.target as HTMLElement)?.closest('[data-toast-viewport="true"]')) {
           e.preventDefault();
         }
@@ -394,14 +393,16 @@ export function FileSelectionModal({
             </div>
             
             <ScrollArea className="flex-grow border rounded-md p-1">
-              {organizedData.length === 0 && (
+              {organizedData.every(p => p.packages.length === 0 && (!p.otherFiles || p.otherFiles.length === 0)) && (
                   <p className="text-sm text-muted-foreground p-4 text-center">{t('noSelectableFiles', currentLanguage)}</p>
               )}
+
               {organizedData.map(projectGroup => (
-                <div key={projectGroup.projectName + projectGroup.projectActualId} className="mb-3">
+                <div key={projectGroup.projectActualId} className="mb-3">
                   {(isMultiProjectMode && projectsToProcess.length > 1 && projectsForListDisplay.length > 1) && (
                     <h4 className="text-sm font-semibold p-2 bg-muted rounded-t-md sticky top-0 z-10">{projectGroup.projectName}</h4>
                   )}
+                  
                   {projectGroup.packages.map(pkgGroup => (
                     <div key={pkgGroup.packageName} className="mb-2">
                        <p className="text-xs font-medium text-muted-foreground px-2 py-1">{getDisplayPackageName(pkgGroup.packageName)}</p>
@@ -412,7 +413,7 @@ export function FileSelectionModal({
                               <Checkbox
                                 id={`${projectGroup.projectActualId}-${file.id}`}
                                 checked={file.selected}
-                                onCheckedChange={(checked) => handleFileSelectionChange(projectGroup.projectActualId!, file.id, !!checked)}
+                                onCheckedChange={(checked) => handleFileSelectionChange(projectGroup.projectActualId, file.id, !!checked)}
                                 className="mr-2 shrink-0"
                               />
                               {getFileIcon(file.fileType)}
@@ -428,46 +429,41 @@ export function FileSelectionModal({
                       </ul>
                     </div>
                   ))}
+
+                  {projectGroup.otherFiles && projectGroup.otherFiles.length > 0 && (
+                     <div className="px-2 pt-1">
+                        <Accordion type="single" collapsible>
+                            <AccordionItem value="item-1">
+                                <AccordionTrigger className="text-sm font-semibold hover:no-underline p-2 rounded-md hover:bg-secondary -mx-2">
+                                    <div className="flex items-center text-yellow-600 dark:text-yellow-400">
+                                        <AlertTriangle className="w-4 h-4 mr-2" />
+                                        <span>{t('otherFileTypesFound', currentLanguage, { count: projectGroup.otherFiles.length })}</span>
+                                    </div>
+                                </AccordionTrigger>
+                                <AccordionContent className="pt-2">
+                                    <p className="text-xs text-muted-foreground px-2 pb-2">
+                                      {t('otherFileTypesDescription', currentLanguage, { projectType: projectType })}
+                                    </p>
+                                    <ScrollArea className="max-h-[120px] p-1 -m-1">
+                                        <div className="space-y-1 pr-2">
+                                            {projectGroup.otherFiles.map(entry => (
+                                                <div key={entry.fullPath} className="flex items-center justify-between text-sm py-0.5 px-1 rounded hover:bg-accent/50 group">
+                                                    <span className="truncate flex-grow" title={entry.name}>{entry.name}</span>
+                                                    <Button size="sm" variant="ghost" className="h-7" onClick={() => onAddOtherTypeFile(entry, projectGroup.projectActualId)}>
+                                                        {t('add', currentLanguage)}
+                                                    </Button>
+                                                </div>
+                                            ))}
+                                        </div>
+                                    </ScrollArea>
+                                </AccordionContent>
+                            </AccordionItem>
+                        </Accordion>
+                    </div>
+                  )}
                 </div>
               ))}
             </ScrollArea>
-            
-            {otherTypeFiles.length > 0 && (
-              <div className="pt-2 mt-2">
-                  <Accordion type="single" collapsible defaultValue="item-1">
-                      <AccordionItem value="item-1">
-                          <AccordionTrigger className="text-sm font-semibold hover:no-underline p-2 rounded-md hover:bg-secondary">
-                              <div className="flex items-center text-yellow-600 dark:text-yellow-400">
-                                  <AlertTriangle className="w-4 h-4 mr-2" />
-                                  <span>{t('otherFileTypesFound', currentLanguage, { count: otherTypeFiles.length })}</span>
-                              </div>
-                          </AccordionTrigger>
-                          <AccordionContent className="pt-2">
-                              <p className="text-xs text-muted-foreground px-2 pb-2">
-                                {t('otherFileTypesDescription', currentLanguage, { projectType: projectType })}
-                              </p>
-                              <ScrollArea className="h-[120px] p-1 border rounded-md">
-                                  <div className="space-y-1 pr-2">
-                                      {otherTypeFiles.map(entry => (
-                                          <div key={entry.fullPath} className="flex items-center justify-between text-sm py-0.5 px-1 rounded hover:bg-accent/50 group">
-                                              <span className="truncate flex-grow" title={entry.name}>{entry.name}</span>
-                                              <Button size="sm" variant="ghost" className="h-7" onClick={() => {
-                                                  const targetProjectId = (!isMultiProjectMode && projectsToProcess.length > 0 && projectsToProcess[currentProjectIndex])
-                                                      ? projectsToProcess[currentProjectIndex].id
-                                                      : 'new_project';
-                                                  onAddOtherTypeFile(entry, targetProjectId);
-                                              }}>
-                                                  {t('add', currentLanguage)}
-                                              </Button>
-                                          </div>
-                                      ))}
-                                  </div>
-                              </ScrollArea>
-                          </AccordionContent>
-                      </AccordionItem>
-                  </Accordion>
-              </div>
-            )}
 
             <div className="pt-2 text-center border-t mt-2">
                 <Button variant="outline" size="sm" onClick={() => setIsManualAddModalOpen(true)}>

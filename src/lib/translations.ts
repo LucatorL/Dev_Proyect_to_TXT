@@ -111,7 +111,7 @@ export const translations = {
     // Toasts in page.tsx
     entryDeletedFromHistoryToast: "Entry deleted from history.", 
     noSupportedFilesFoundToastTitle: "No standard files found",
-    noSupportedFilesFoundToastDescription: "No standard files for the '{projectType}' project type were found in the provided items.",
+    noSupportedFilesFoundToastDescription: "No standard files for the '{projectType}' project type were found in the provided items. You can add other recognized file types from the selection modal.",
     processingErrorToastTitle: "Processing Error",
     processingErrorToastDescription: "An error occurred while processing the files. Check the console for more details.",
     processingErrorToastDescriptionShort: "Could not read file {fileName}.",
@@ -197,7 +197,7 @@ export const translations = {
     selectFilesModalDescription: "Selecciona los archivos a incluir. Los archivos primarios para el tipo de proyecto se seleccionan por defecto.",
     onlyUnsupportedFilesDescription: "No se encontraron archivos estándar para este tipo de proyecto, pero puedes añadir los que se listan abajo.",
     projectFiles: "Archivos de Proyectos",
-    filesFromProject: "Files from: {projectName}",
+    filesFromProject: "Archivos de: {projectName}",
     currentProjectFallbackName: "Proyecto Actual",
     previousProject: "Proyecto Anterior",
     nextProject: "Siguiente Proyecto",
@@ -229,7 +229,7 @@ export const translations = {
     couldNotCopy: "No se pudo copiar al portapapeles.",
     fileContentCopied: "Contenido de {fileName} copiado.",
     couldNotCopyToClipboard: "No se pudo copiar.",
-    otherFileTypesFound: "{count} archivos de otros tipos encontrados",
+    otherFileTypesFound: "{count} archivos de otro tipo encontrados",
     otherFileTypesDescription: "Estos archivos no son estándar para el tipo de proyecto '{projectType}', pero puedes añadirlos al proceso de unificación.",
     add: "Añadir",
 
@@ -256,7 +256,7 @@ export const translations = {
     // Toasts in page.tsx
     entryDeletedFromHistoryToast: "Entrada eliminada del historial.",
     noSupportedFilesFoundToastTitle: "Sin archivos estándar",
-    noSupportedFilesFoundToastDescription: "No se encontraron archivos estándar para el tipo de proyecto '{projectType}' en los elementos proporcionados.",
+    noSupportedFilesFoundToastDescription: "No se encontraron archivos estándar para el tipo de proyecto '{projectType}'. Puedes añadir otros tipos de archivo reconocidos desde el modal de selección.",
     processingErrorToastTitle: "Error de Procesamiento",
     processingErrorToastDescription: "Ocurrió un error al procesar los archivos. Revisa la consola para más detalles.",
     processingErrorToastDescriptionShort: "No se pudo leer el archivo {fileName}.",

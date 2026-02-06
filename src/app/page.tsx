@@ -34,7 +34,6 @@ export default function DevProjectUnifierPage() {
   const [projectType, setProjectType] = useLocalStorage<ProjectType>('dev-project-type', 'java');
   
   const [processedProjects, setProcessedProjects] = useState<ProjectFile[]>([]);
-  const [otherTypeFiles, setOtherTypeFiles] = useState<FileSystemFileEntry[]>([]);
   const [isSelectionModalOpen, setIsSelectionModalOpen] = useState(false);
   
   const [isRecentInfoModalOpen, setIsRecentInfoModalOpen] = useState(false);
@@ -52,10 +51,10 @@ export default function DevProjectUnifierPage() {
   }, [language]);
 
   useEffect(() => {
-    if (isSelectionModalOpen && processedProjects.length === 0 && otherTypeFiles.length === 0) {
+    if (isSelectionModalOpen && processedProjects.length === 0) {
       setIsSelectionModalOpen(false);
     }
-  }, [processedProjects, otherTypeFiles, isSelectionModalOpen]);
+  }, [processedProjects, isSelectionModalOpen]);
 
   const addRecentEntry = useCallback((project: ProjectFile | RecentEntry, customName?: string) => {
     setRecents(prevRecents => {
@@ -144,14 +143,42 @@ export default function DevProjectUnifierPage() {
     });
   };
 
-  const handleAddOtherTypeFile = async (entry: FileSystemFileEntry, targetProjectId: string | 'new_project') => {
+  const handleAddOtherTypeFile = async (entry: FileSystemFileEntry, targetProjectId: string) => {
     if (!entry.isFile) return;
 
     try {
         const file = await new Promise<File>((resolve, reject) => entry.file(resolve, reject));
         const content = await readFileContent(file);
-        handleManualContentAddRequested(file.name, content, targetProjectId);
-        setOtherTypeFiles(prev => prev.filter(f => f.fullPath !== entry.fullPath));
+        const fileName = file.name;
+        const fileType = getFileExtension(fileName);
+
+        setProcessedProjects(prevProjects => {
+            return prevProjects.map(proj => {
+                if (proj.id === targetProjectId) {
+                    let packageName = fileType === 'java' ? extractJavaPackageName(content) : OTHER_FILES_PACKAGE_NAME_LOGIC;
+                    if (packageName === '' && fileType === 'java') packageName = DEFAULT_PACKAGE_NAME_LOGIC;
+
+                    const newFile: ProcessedFile = {
+                        id: `manual-file-${Date.now()}-${Math.random()}`,
+                        path: fileName,
+                        name: fileName,
+                        content,
+                        packageName,
+                        fileType,
+                        projectName: proj.name,
+                        selected: PROJECT_CONFIG[projectType].defaultSelected.includes(fileType),
+                    };
+
+                    const updatedOtherFiles = proj.otherFiles?.filter(f => f.fullPath !== entry.fullPath);
+
+                    toast({ title: t('fileAddedToastTitle', language), description: t('fileXAddedToYToast', language, { fileName, projectName: proj.name }) });
+                    
+                    return { ...proj, files: [...proj.files, newFile], otherFiles: updatedOtherFiles };
+                }
+                return proj;
+            });
+        });
+
     } catch (error) {
         console.error("Error reading file to add anyway:", error);
         toast({
@@ -167,12 +194,13 @@ export default function DevProjectUnifierPage() {
     if (droppedItems.length === 0) return;
 
     setProcessedProjects([]);
-    setOtherTypeFiles([]);
 
     try {
-      const { projects, otherFiles } = await processDroppedItems(droppedItems, projectType);
+      const { projects } = await processDroppedItems(droppedItems, projectType);
 
-      if (projects.length === 0 && otherFiles.length === 0) {
+      const totalFileCount = projects.reduce((acc, p) => acc + p.files.length + (p.otherFiles?.length || 0), 0);
+
+      if (totalFileCount === 0) {
         toast({
           title: t('noSupportedFilesFoundToastTitle', language),
           description: t('noSupportedFilesFoundToastDescription', language, { projectType, extensions: PROJECT_CONFIG[projectType].extensions.join(', ') }),
@@ -181,18 +209,13 @@ export default function DevProjectUnifierPage() {
         return;
       }
       
-      if (projects.length > 0) {
-        setProcessedProjects(projects); 
-        projects.forEach(proj => {
-          if(proj.files.length > 0) addRecentEntry(proj);
-        });
-      }
+      const validProjects = projects.filter(p => p.files.length > 0 || (p.otherFiles && p.otherFiles.length > 0));
 
-      if (otherFiles.length > 0) {
-        setOtherTypeFiles(otherFiles);
-      }
-      
-      if (projects.length > 0 || otherFiles.length > 0) {
+      if (validProjects.length > 0) {
+        setProcessedProjects(validProjects);
+        validProjects.forEach(proj => {
+          if (proj.files.length > 0) addRecentEntry(proj);
+        });
         setCurrentProjectIndexInModal(0); 
         setIsSelectionModalOpen(true); 
       }
@@ -208,8 +231,7 @@ export default function DevProjectUnifierPage() {
   };
   
   const handleSelectionModalClose = useCallback(() => {
-    setIsSelectionModalOpen(false); 
-    setOtherTypeFiles([]);
+    setIsSelectionModalOpen(false);
 
     if (isMultiProjectMode || processedProjects.length <= 1) {
         setProcessedProjects([]);
@@ -229,7 +251,7 @@ export default function DevProjectUnifierPage() {
         setProcessedProjects([]); 
       }
     }
-  }, [isMultiProjectMode, processedProjects, currentProjectIndexInModal, setProcessedProjects, setIsSelectionModalOpen, setCurrentProjectIndexInModal]);
+  }, [isMultiProjectMode, processedProjects, currentProjectIndexInModal]);
 
 
   const handleSingleProjectProcessed = (projectId: string, downloadData: { fileName: string; content: string }) => {
@@ -249,10 +271,10 @@ export default function DevProjectUnifierPage() {
       description: t('projectProcessedAndDownloadedToast', language, { projectName: getProjectBaseName(downloadData.fileName.replace('_unificado.txt', '')) }) 
     });
 
-    if (updatedProjects.length === 0 && otherTypeFiles.length === 0) {
+    if (updatedProjects.length === 0) {
         setIsSelectionModalOpen(false);
     } else {
-      setIsSelectionModalOpen(true); // Keep modal open if other projects or unsupported files remain
+      setIsSelectionModalOpen(true);
     }
   };
 
@@ -358,13 +380,12 @@ export default function DevProjectUnifierPage() {
             currentLanguage={language}
         />
       </main>
-      {isSelectionModalOpen && (processedProjects.length > 0 || otherTypeFiles.length > 0) && (
+      {isSelectionModalOpen && (processedProjects.length > 0) && (
         <FileSelectionModal
-          key={`${processedProjects.map(p => p.id).join('-')}-${otherTypeFiles.map(f => f.name).join('-')}-${currentProjectIndexInModal}-${isMultiProjectMode}-${language}`} 
+          key={`${processedProjects.map(p => p.id).join('-')}-${currentProjectIndexInModal}-${isMultiProjectMode}-${language}`} 
           isOpen={isSelectionModalOpen}
           onClose={handleSelectionModalClose} 
           projectsToProcess={processedProjects}
-          otherTypeFiles={otherTypeFiles}
           onAddOtherTypeFile={handleAddOtherTypeFile}
           onSingleProjectProcessed={handleSingleProjectProcessed}
           onMultiProjectProcessed={handleMultiProjectProcessed}

@@ -110,7 +110,7 @@ async function getFileEntriesInDirectory(directory: FileSystemDirectoryEntry): P
 }
 
 
-async function _processZipFile(file: File, projectType: ProjectType): Promise<{ project: ProjectFile | null; otherFiles: FileSystemFileEntry[] }> {
+async function _processZipFile(file: File, projectType: ProjectType): Promise<ProjectFile | null> {
     const projectName = getProjectBaseName(file.name);
     const project: ProjectFile = {
         id: `${projectName}-${Date.now()}-${Math.random()}`,
@@ -119,7 +119,6 @@ async function _processZipFile(file: File, projectType: ProjectType): Promise<{ 
         files: [],
         timestamp: Date.now(),
     };
-    const otherFiles: FileSystemFileEntry[] = []; // We can't get entries from JSZip, so this will be empty
 
     try {
         const zip = await JSZip.loadAsync(file);
@@ -157,7 +156,7 @@ async function _processZipFile(file: File, projectType: ProjectType): Promise<{ 
                     })();
                     fileProcessingPromises.push(promise);
                 }
-                // Cannot generate otherFiles toast for zips as we don't have a FileSystemFileEntry
+                // Note: 'otherFiles' from zips are not handled in this version for simplicity.
             }
         });
 
@@ -165,19 +164,18 @@ async function _processZipFile(file: File, projectType: ProjectType): Promise<{ 
         project.files.push(...allFiles);
 
         if (project.files.length > 0) {
-            return { project, otherFiles };
+            return project;
         }
 
     } catch (e) {
         console.error(`Failed to process zip file ${file.name}: `, e);
     }
-    return { project: null, otherFiles };
+    return null;
 }
 
 
-export async function processDroppedItems(items: FileSystemFileEntry[], projectType: ProjectType): Promise<{ projects: ProjectFile[], otherFiles: FileSystemFileEntry[] }> {
+export async function processDroppedItems(items: FileSystemFileEntry[], projectType: ProjectType): Promise<{ projects: ProjectFile[] }> {
   const projects: ProjectFile[] = [];
-  const otherFiles: FileSystemFileEntry[] = [];
   let totalFilesProcessed = 0;
 
   const projectMap = new Map<string, ProjectFile>();
@@ -191,7 +189,7 @@ export async function processDroppedItems(items: FileSystemFileEntry[], projectT
     if (item.isFile && item.name.toLowerCase().endsWith('.zip')) {
         try {
             const file = await new Promise<File>((resolve, reject) => item.file(resolve, reject));
-            const { project: zipProject } = await _processZipFile(file, projectType);
+            const zipProject = await _processZipFile(file, projectType);
             if(zipProject && zipProject.files.length > 0) {
                 projects.push(zipProject);
                 totalFilesProcessed += zipProject.files.length;
@@ -206,7 +204,7 @@ export async function processDroppedItems(items: FileSystemFileEntry[], projectT
         if (!project) {
             project = {
                 id: `${projectName}-${Date.now()}-${Math.random()}`,
-                name: projectName, type: 'folder', files: [], timestamp: Date.now(),
+                name: projectName, type: 'folder', files: [], timestamp: Date.now(), otherFiles: []
             };
             projectMap.set(projectName, project);
         }
@@ -231,24 +229,27 @@ export async function processDroppedItems(items: FileSystemFileEntry[], projectT
                      }
                  } catch (e) { console.warn(`Could not read file ${fileEntry.name}`, e); }
              } else {
-                 otherFiles.push(fileEntry);
+                 const extension = getFileExtension(fileEntry.name);
+                 if (ALL_SUPPORTED_EXTENSIONS.includes(extension)) {
+                    project.otherFiles!.push(fileEntry);
+                 }
              }
         }
 
     } else if (item.isFile) {
+        const projectName = getProjectBaseName(item.name);
+        let project = projectMap.get(projectName);
+        if (!project) {
+            project = {
+                id: `${projectName}-${Date.now()}-${Math.random()}`,
+                name: projectName, type: 'file', files: [], timestamp: Date.now(), otherFiles: []
+            };
+            projectMap.set(projectName, project);
+        }
          if (isSupportedFile(item.name, projectType)) {
              try {
-                 const file = await new Promise<File>((res) => item.file(res));
+                 const file = await new Promise<File>((res) => (item as FileSystemFileEntry).file(res));
                  if (file.size <= MAX_FILE_SIZE) {
-                    const projectName = getProjectBaseName(item.name);
-                    let project = projectMap.get(projectName);
-                     if (!project) {
-                        project = {
-                           id: `${projectName}-${Date.now()}-${Math.random()}`,
-                           name: projectName, type: 'file', files: [], timestamp: Date.now(),
-                        };
-                        projectMap.set(projectName, project);
-                     }
                      const content = await readFileContent(file);
                      const fileType = getFileExtension(file.name);
                      const { path, packageName } = parseFileMeta(file.name, content, fileType, projectType);
@@ -263,18 +264,21 @@ export async function processDroppedItems(items: FileSystemFileEntry[], projectT
                  }
              } catch(e) { console.warn(`Could not read file ${item.name}`, e); }
          } else {
-            otherFiles.push(item);
+            const extension = getFileExtension(item.name);
+            if (ALL_SUPPORTED_EXTENSIONS.includes(extension)) {
+                project.otherFiles!.push(item as FileSystemFileEntry);
+            }
          }
     }
   }
 
   projectMap.forEach(proj => {
-    if (proj.files.length > 0) {
+    if (proj.files.length > 0 || (proj.otherFiles && proj.otherFiles.length > 0)) {
       projects.push(proj);
     }
   });
 
-  return { projects, otherFiles };
+  return { projects };
 }
 
 
