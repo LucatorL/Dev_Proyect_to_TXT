@@ -146,10 +146,18 @@ export default function DevProjectUnifierPage() {
 
   const handleAddUnsupportedFile = useCallback(async (entry: FileSystemFileEntry) => {
     if (!entry.isFile) return;
+
+    // Determine the target project ID.
+    // In multi-project mode, it's ambiguous. The best UX is to add it to a new project.
+    // In single-project mode, add it to the currently viewed project.
+    const targetProjectId = (!isMultiProjectMode && processedProjects[currentProjectIndexInModal])
+        ? processedProjects[currentProjectIndexInModal].id
+        : 'new_project';
+
     try {
         const file = await new Promise<File>((resolve, reject) => entry.file(resolve, reject));
         const content = await readFileContent(file);
-        handleManualContentAddRequested(file.name, content, 'new_project');
+        handleManualContentAddRequested(file.name, content, targetProjectId);
         setUnsupportedFiles(prev => prev.filter(f => f.fullPath !== entry.fullPath));
     } catch (error) {
         console.error("Error reading file to add anyway:", error);
@@ -159,7 +167,7 @@ export default function DevProjectUnifierPage() {
             variant: "destructive",
         });
     }
-  }, [handleManualContentAddRequested, language, toast]);
+  }, [handleManualContentAddRequested, language, toast, isMultiProjectMode, processedProjects, currentProjectIndexInModal]);
 
 
   const handleFilesDropped = async (droppedItems: FileSystemFileEntry[]) => {
