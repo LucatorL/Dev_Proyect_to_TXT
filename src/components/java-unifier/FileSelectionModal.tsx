@@ -1,3 +1,4 @@
+
 // components/java-unifier/FileSelectionModal.tsx
 "use client"
 
@@ -320,7 +321,7 @@ export function FileSelectionModal({
     <Dialog open={isOpen} onOpenChange={(open) => { if(!open) onClose(); }}>
       <DialogContent 
         className="max-w-4xl h-[90vh] flex flex-col p-0"
-        onPointerDownOutside={(e) => {
+        onInteractOutside={(e) => {
           if ((e.target as HTMLElement)?.closest('[data-toast-viewport="true"]')) {
             e.preventDefault();
           }
