@@ -1,5 +1,5 @@
 import JSZip from 'jszip';
-import type { ProcessedFile, ProjectFile } from '@/types/java-unifier';
+import type { ProcessedFile, ProjectFile, CommentOption } from '@/types/java-unifier';
 import { DEFAULT_PACKAGE_NAME_LOGIC, OTHER_FILES_PACKAGE_NAME_LOGIC } from '@/lib/translations';
 
 const MAX_FILE_SIZE = 1024 * 1024 * 5; // 5MB limit per file
@@ -325,9 +325,38 @@ export function extractJavaPackageName(content: string): string {
   return packageMatch && packageMatch[1] ? packageMatch[1] : DEFAULT_PACKAGE_NAME_LOGIC;
 }
 
+const removePastUnificationComments = (content: string): string => {
+    // This regex targets the specific comment patterns added by the app.
+    // It looks for lines starting with optional whitespace, then //, then ####, ====, or ----
+    const appCommentRegex = /(^\s*\/\/(#|={5,}|-{5,}).*$\r?\n?)/gm;
+    return content.replace(appCommentRegex, '');
+};
+
+const removeAllCommentsFromCode = (content: string, fileType: string): string => {
+    let cleanedContent = content;
+    // Generic C-style comments (JS, Java, CSS, etc.)
+    cleanedContent = cleanedContent.replace(/\/\*[\s\S]*?\*\/|\/\/.*/g, '');
+    
+    // Specific types
+    if (['xml', 'html', 'vue', 'svelte', 'pom'].includes(fileType)) {
+        cleanedContent = cleanedContent.replace(/<!--[\s\S]*?-->/g, '');
+    }
+    if (['py', 'sh', 'rb', 'yaml', 'yml'].includes(fileType)) {
+        cleanedContent = cleanedContent.replace(/#.*/g, '');
+    }
+    if (['sql'].includes(fileType)) {
+        cleanedContent = cleanedContent.replace(/--.*/g, '');
+    }
+    
+    // Remove empty lines that might result from comment removal
+    return cleanedContent.replace(/^\s*[\r\n]/gm, '').trim();
+};
+
+
 export function unifyProjectFiles( 
   projects: ProjectFile[],
-  isMultiProjectUnification: boolean 
+  isMultiProjectUnification: boolean,
+  commentOption: CommentOption = 'default'
 ): string {
   const sb: string[] = [];
   
@@ -335,17 +364,28 @@ export function unifyProjectFiles(
     const selectedFiles = project.files.filter(f => f.selected);
     if (selectedFiles.length === 0) continue;
 
-    if (isMultiProjectUnification || sb.length === 0) { 
-        if (sb.length > 0) sb.push("\n\n"); 
-        sb.push(`//############################################################`);
-        sb.push(`// PROYECTO: ${project.name}`);
-        sb.push(`//############################################################\n`);
+    if (commentOption !== 'noAppComments' && commentOption !== 'removeAllComments') {
+        if (isMultiProjectUnification || sb.length === 0) { 
+            if (sb.length > 0) sb.push("\n\n"); 
+            sb.push(`//############################################################`);
+            sb.push(`// PROYECTO: ${project.name}`);
+            sb.push(`//############################################################\n`);
+        }
     }
     
     const groupMap = new Map<string, ProcessedFile[]>();
     selectedFiles.forEach(file => {
+        let content = file.content;
+        
+        if (commentOption === 'removePastAppComments') {
+            content = removePastUnificationComments(content);
+        } else if (commentOption === 'removeAllComments') {
+            content = removeAllCommentsFromCode(content, file.fileType);
+        }
+
+        const updatedFile = { ...file, content: content };
         const list = groupMap.get(file.packageName) || [];
-        list.push(file);
+        list.push(updatedFile);
         groupMap.set(file.packageName, list);
     });
 
@@ -360,22 +400,26 @@ export function unifyProjectFiles(
     for (const groupName of sortedGroupNames) {
         const filesInGroup = groupMap.get(groupName)!.sort((a,b) => a.name.localeCompare(b.name));
         
-        let groupTitle = "Grupo";
-        if (groupName.includes('.') && !groupName.includes('/')) {
-            groupTitle = "Paquete";
-        } else if (groupName.includes('/')) {
-            groupTitle = "Directorio";
+        if (commentOption !== 'noAppComments' && commentOption !== 'removeAllComments') {
+            let groupTitle = "Grupo";
+            if (groupName.includes('.') && !groupName.includes('/')) {
+                groupTitle = "Paquete";
+            } else if (groupName.includes('/')) {
+                groupTitle = "Directorio";
+            }
+
+            sb.push(`//============================================================`);
+            sb.push(`// ${groupTitle}: ${groupName}`);
+            sb.push(`//============================================================\n`);
         }
 
-        sb.push(`//============================================================`);
-        sb.push(`// ${groupTitle}: ${groupName}`);
-        sb.push(`//============================================================\n`);
-
         for (const file of filesInGroup) {
-            sb.push(`//------------------------------------------------------------`);
-            sb.push(`// Archivo (Tipo: ${file.fileType.toUpperCase()}): ${file.name}`);
-            sb.push(`// Path: ${file.path}`); 
-            sb.push(`//------------------------------------------------------------\n`);
+            if (commentOption !== 'noAppComments' && commentOption !== 'removeAllComments') {
+                sb.push(`//------------------------------------------------------------`);
+                sb.push(`// Archivo (Tipo: ${file.fileType.toUpperCase()}): ${file.name}`);
+                sb.push(`// Path: ${file.path}`); 
+                sb.push(`//------------------------------------------------------------\n`);
+            }
             sb.push(file.content.trim());
             sb.push("\n\n"); 
         }

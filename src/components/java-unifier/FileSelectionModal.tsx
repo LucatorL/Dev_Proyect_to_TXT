@@ -16,7 +16,7 @@ import { Checkbox } from "@/components/ui/checkbox";
 import { ScrollArea } from "@/components/ui/scroll-area";
 import { Textarea } from "@/components/ui/textarea";
 import { Label } from "@/components/ui/label";
-import type { ProcessedFile, ProjectFile, PackageGroup, ProjectGroup } from '@/types/java-unifier';
+import type { ProcessedFile, ProjectFile, PackageGroup, ProjectGroup, CommentOption } from '@/types/java-unifier';
 import { unifyProjectFiles, getProjectBaseName, type ProjectType } from '@/lib/file-processor';
 import { Copy, Download, Eye, CheckSquare, Square, FileText, FileCode, Database, Settings2, Info, ChevronLeft, ChevronRight, PlusCircle, Globe, Combine, Code, FileJson, FileKey, AlertTriangle } from 'lucide-react';
 import { useToast } from '@/hooks/use-toast';
@@ -24,6 +24,8 @@ import { Tooltip, TooltipContent, TooltipProvider, TooltipTrigger } from "@/comp
 import { ManualAddContentModal } from '@/components/java-unifier/ManualAddContentModal';
 import { t, type Language, DEFAULT_PACKAGE_NAME_LOGIC, OTHER_FILES_PACKAGE_NAME_LOGIC } from '@/lib/translations';
 import { Accordion, AccordionContent, AccordionItem, AccordionTrigger } from "@/components/ui/accordion";
+import { Select, SelectContent, SelectItem, SelectTrigger, SelectValue } from "@/components/ui/select";
+
 
 interface FileSelectionModalProps {
   isOpen: boolean;
@@ -111,6 +113,7 @@ export function FileSelectionModal({
   const [individualFilePreview, setIndividualFilePreview] = useState<{ name: string, content: string, fileType: string } | null>(null);
   const [currentProjectIndex, setCurrentProjectIndex] = useState(initialProjectIndex);
   const [isManualAddModalOpen, setIsManualAddModalOpen] = useState(false);
+  const [commentOption, setCommentOption] = useState<CommentOption>('default');
 
   useEffect(() => {
     setCurrentDisplayProjects(projectsToProcess);
@@ -145,7 +148,7 @@ export function FileSelectionModal({
         setEstimatedTokens(0);
         return;
       }
-      const content = unifyProjectFiles(selectedProjectsForPreview, isMultiProjectMode); 
+      const content = unifyProjectFiles(selectedProjectsForPreview, isMultiProjectMode, commentOption); 
       setUnifiedPreview(content);
       const tokens = Math.max(0, Math.ceil(content.length / 4));
       setEstimatedTokens(tokens);
@@ -153,7 +156,7 @@ export function FileSelectionModal({
       setUnifiedPreview("");
       setEstimatedTokens(0);
     }
-  }, [currentDisplayProjects, isMultiProjectMode, currentProjectIndex, showPreview]);
+  }, [currentDisplayProjects, isMultiProjectMode, currentProjectIndex, showPreview, commentOption]);
 
   const handleFileSelectionChange = (projectId: string, fileId: string, selected: boolean) => {
     setCurrentDisplayProjects(prevProjects =>
@@ -219,7 +222,7 @@ export function FileSelectionModal({
         toast({ title: t('noSelection', currentLanguage), description: t('pleaseSelectOneFileFromAProject', currentLanguage), variant: "destructive" });
         return;
       }
-      finalUnifiedContent = unifyProjectFiles(projectsToUnify, true);
+      finalUnifiedContent = unifyProjectFiles(projectsToUnify, true, commentOption);
       const baseName = projectsToUnify.length > 1 || !projectsToUnify[0] 
         ? t('unifiedProjectsGenericName', currentLanguage).replace(/\s/g, '_') 
         : getProjectBaseName(projectsToUnify[0].name);
@@ -237,7 +240,7 @@ export function FileSelectionModal({
         toast({ title: t('noSelection', currentLanguage), description: t('pleaseSelectOneFileFromCurrentProject', currentLanguage), variant: "destructive" });
         return;
       }
-      finalUnifiedContent = unifyProjectFiles([{...currentProjectForConfirm, files: selectedFiles}], false);
+      finalUnifiedContent = unifyProjectFiles([{...currentProjectForConfirm, files: selectedFiles}], false, commentOption);
       finalOutputFileName = getProjectBaseName(currentProjectForConfirm.name) + "_unificado.txt";
       
       onSingleProjectProcessed(currentProjectForConfirm.id, { fileName: finalOutputFileName, content: finalUnifiedContent });
@@ -322,7 +325,6 @@ export function FileSelectionModal({
   return (
     <Dialog open={isOpen} onOpenChange={(open) => { if(!open) onClose(); }}>
       <DialogContent onInteractOutside={(e) => {
-        // Prevent closing modal when interacting with toasts
         if ((e.target as HTMLElement)?.closest('[data-toast-viewport="true"]')) {
           e.preventDefault();
         }
@@ -508,10 +510,26 @@ export function FileSelectionModal({
           </div>
         </div>
 
-        <DialogFooter className="p-6 pt-0 border-t mt-auto">
-          <Button variant="outline" onClick={onClose}>{t('cancel', currentLanguage)}</Button>
-          {showPreview && <Button variant="secondary" onClick={handleCopyToClipboard}><Copy className="mr-2 h-4 w-4" /> {t('copyAll', currentLanguage)}</Button>}
-          <Button onClick={handleConfirmAndSave}><Download className="mr-2 h-4 w-4" /> {t('acceptAndSave', currentLanguage)}</Button>
+        <DialogFooter className="p-6 pt-4 border-t mt-auto flex-col md:flex-row md:justify-between md:items-center gap-4">
+          <div className="w-full md:w-auto">
+            <Label htmlFor="comment-options" className="text-xs text-muted-foreground">{t('commentHandling', currentLanguage)}</Label>
+            <Select value={commentOption} onValueChange={(value: CommentOption) => setCommentOption(value)}>
+              <SelectTrigger id="comment-options" className="w-full md:w-[320px] mt-1">
+                <SelectValue />
+              </SelectTrigger>
+              <SelectContent>
+                <SelectItem value="default">{t('commentHandlingDefault', currentLanguage)}</SelectItem>
+                <SelectItem value="noAppComments">{t('commentHandlingNoIdentifiers', currentLanguage)}</SelectItem>
+                <SelectItem value="removePastAppComments">{t('commentHandlingRemovePast', currentLanguage)}</SelectItem>
+                <SelectItem value="removeAllComments">{t('commentHandlingRemoveAll', currentLanguage)}</SelectItem>
+              </SelectContent>
+            </Select>
+          </div>
+          <div className="flex space-x-2 self-end w-full md:w-auto justify-end">
+            <Button variant="outline" onClick={onClose}>{t('cancel', currentLanguage)}</Button>
+            {showPreview && <Button variant="secondary" onClick={handleCopyToClipboard}><Copy className="mr-2 h-4 w-4" /> {t('copyAll', currentLanguage)}</Button>}
+            <Button onClick={handleConfirmAndSave}><Download className="mr-2 h-4 w-4" /> {t('acceptAndSave', currentLanguage)}</Button>
+          </div>
         </DialogFooter>
       </DialogContent>
 

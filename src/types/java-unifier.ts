@@ -1,5 +1,7 @@
 
 
+export type CommentOption = 'default' | 'noAppComments' | 'removePastAppComments' | 'removeAllComments';
+
 export interface ProcessedFile {
   id: string; // Unique ID for the file
   path: string; // relative path within project e.g., com/example/MyClass.java or config.xml

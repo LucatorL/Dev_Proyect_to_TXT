@@ -87,6 +87,11 @@ export const translations = {
     otherFileTypesFound: "{count} other file types found",
     otherFileTypesDescription: "These files are not standard for the '{projectType}' project type, but you can add them to the unification process.",
     add: "Add",
+    commentHandling: "Comment Handling",
+    commentHandlingDefault: "Default (Keep all, add identifiers)",
+    commentHandlingNoIdentifiers: "Don't add identification comments",
+    commentHandlingRemovePast: "Remove previous unification comments",
+    commentHandlingRemoveAll: "Remove ALL comments (code & identifiers)",
 
     // ManualAddContentModal
     addManualContentTitle: "Add Content Manually",
@@ -232,6 +237,11 @@ export const translations = {
     otherFileTypesFound: "{count} archivos de otro tipo encontrados",
     otherFileTypesDescription: "Estos archivos no son estándar para el tipo de proyecto '{projectType}', pero puedes añadirlos al proceso de unificación.",
     add: "Añadir",
+    commentHandling: "Gestión de Comentarios",
+    commentHandlingDefault: "Por defecto (Mantener todo, añadir identificadores)",
+    commentHandlingNoIdentifiers: "No añadir comentarios de identificación",
+    commentHandlingRemovePast: "Eliminar comentarios de unificaciones anteriores",
+    commentHandlingRemoveAll: "Eliminar TODOS los comentarios (código e identificadores)",
 
     // ManualAddContentModal
     addManualContentTitle: "Añadir Contenido Manualmente",
