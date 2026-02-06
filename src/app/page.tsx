@@ -1,4 +1,3 @@
-
 // app/page.tsx
 "use client"
 
@@ -13,7 +12,6 @@ import type { ProjectFile, RecentEntry, ProcessedFile } from '@/types/java-unifi
 import { processDroppedItems, unifyProjectFiles, downloadTextFile, getProjectBaseName, getFileExtension, extractJavaPackageName, type ProjectType, PROJECT_CONFIG, readFileContent } from '@/lib/file-processor';
 import { DEFAULT_PACKAGE_NAME_LOGIC, OTHER_FILES_PACKAGE_NAME_LOGIC, t, type Language } from '@/lib/translations';
 import { useToast } from "@/hooks/use-toast";
-import { ToastAction } from "@/components/ui/toast";
 import {
   AlertDialog,
   AlertDialogAction,
@@ -36,6 +34,7 @@ export default function DevProjectUnifierPage() {
   const [projectType, setProjectType] = useLocalStorage<ProjectType>('dev-project-type', 'java');
   
   const [processedProjects, setProcessedProjects] = useState<ProjectFile[]>([]);
+  const [unsupportedFiles, setUnsupportedFiles] = useState<FileSystemFileEntry[]>([]);
   const [isSelectionModalOpen, setIsSelectionModalOpen] = useState(false);
   
   const [isRecentInfoModalOpen, setIsRecentInfoModalOpen] = useState(false);
@@ -53,10 +52,10 @@ export default function DevProjectUnifierPage() {
   }, [language]);
 
   useEffect(() => {
-    if (isSelectionModalOpen && processedProjects.length === 0) {
+    if (isSelectionModalOpen && processedProjects.length === 0 && unsupportedFiles.length === 0) {
       setIsSelectionModalOpen(false);
     }
-  }, [processedProjects, isSelectionModalOpen]);
+  }, [processedProjects, unsupportedFiles, isSelectionModalOpen]);
 
   const addRecentEntry = useCallback((project: ProjectFile | RecentEntry, customName?: string) => {
     setRecents(prevRecents => {
@@ -151,6 +150,7 @@ export default function DevProjectUnifierPage() {
         const file = await new Promise<File>((resolve, reject) => entry.file(resolve, reject));
         const content = await readFileContent(file);
         handleManualContentAddRequested(file.name, content, 'new_project');
+        setUnsupportedFiles(prev => prev.filter(f => f.fullPath !== entry.fullPath));
     } catch (error) {
         console.error("Error reading file to add anyway:", error);
         toast({
@@ -164,6 +164,9 @@ export default function DevProjectUnifierPage() {
 
   const handleFilesDropped = async (droppedItems: FileSystemFileEntry[]) => {
     if (droppedItems.length === 0) return;
+
+    setProcessedProjects([]);
+    setUnsupportedFiles([]);
 
     try {
       const { projects, unsupported } = await processDroppedItems(droppedItems, projectType);
@@ -182,19 +185,16 @@ export default function DevProjectUnifierPage() {
         projects.forEach(proj => {
           if(proj.files.length > 0) addRecentEntry(proj);
         });
+      }
+
+      if (unsupported.length > 0) {
+        setUnsupportedFiles(unsupported);
+      }
+      
+      if (projects.length > 0 || unsupported.length > 0) {
         setCurrentProjectIndexInModal(0); 
         setIsSelectionModalOpen(true); 
       }
-
-      unsupported.forEach(entry => {
-        toast({
-          title: t('unsupportedFileFoundTitle', language),
-          description: t('unsupportedFileFoundDescription', language, { fileName: entry.name, projectType: projectType }),
-          variant: "default",
-          duration: 10000,
-          action: <ToastAction altText={t('addAnywayButton', language)} onClick={() => handleAddUnsupportedFile(entry)}>{t('addAnywayButton', language)}</ToastAction>
-        });
-      });
 
     } catch (error) {
       console.error("Error processing files:", error);
@@ -208,6 +208,7 @@ export default function DevProjectUnifierPage() {
   
   const handleSelectionModalClose = useCallback(() => {
     setIsSelectionModalOpen(false); 
+    setUnsupportedFiles([]);
 
     if (isMultiProjectMode || processedProjects.length <= 1) {
         setProcessedProjects([]);
@@ -247,10 +248,10 @@ export default function DevProjectUnifierPage() {
       description: t('projectProcessedAndDownloadedToast', language, { projectName: getProjectBaseName(downloadData.fileName.replace('_unificado.txt', '')) }) 
     });
 
-    if (updatedProjects.length === 0) {
+    if (updatedProjects.length === 0 && unsupportedFiles.length === 0) {
         setIsSelectionModalOpen(false);
     } else {
-      setIsSelectionModalOpen(true); // Keep modal open if other projects remain
+      setIsSelectionModalOpen(true); // Keep modal open if other projects or unsupported files remain
     }
   };
 
@@ -361,12 +362,14 @@ export default function DevProjectUnifierPage() {
             currentLanguage={language}
         />
       </main>
-      {isSelectionModalOpen && processedProjects.length > 0 && (
+      {isSelectionModalOpen && (processedProjects.length > 0 || unsupportedFiles.length > 0) && (
         <FileSelectionModal
-          key={processedProjects.map(p => p.id).join('-') + `-${currentProjectIndexInModal}-${isMultiProjectMode}-${language}`} 
+          key={`${processedProjects.map(p => p.id).join('-')}-${unsupportedFiles.map(f => f.name).join('-')}-${currentProjectIndexInModal}-${isMultiProjectMode}-${language}`} 
           isOpen={isSelectionModalOpen}
           onClose={handleSelectionModalClose} 
           projectsToProcess={processedProjects}
+          unsupportedFiles={unsupportedFiles}
+          onAddUnsupportedFile={handleAddUnsupportedFile}
           onSingleProjectProcessed={handleSingleProjectProcessed}
           onMultiProjectProcessed={handleMultiProjectProcessed}
           isMultiProjectMode={isMultiProjectMode}

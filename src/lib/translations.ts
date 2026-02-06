@@ -31,15 +31,10 @@ export const translations = {
     selectFoldersOrFiles: "Select Folders or Files",
     compressedFileNotSupported: "Unsupported Compressed File",
     compressedRarFileDescription: "File '{fileName}' is a .RAR and is not supported. Please extract it first. .ZIP files are supported.",
-    unsupportedFile: "Unsupported File for '{projectType}' type",
-    unsupportedFileDescription: "File '{fileName}' is not a supported type for the selected project type and will be ignored. Supported: {supportedExtensions}",
     unsupportedItem: "Unsupported Item",
     unsupportedItemDescription: "Item '{fileName}' is not a folder or a supported file and will be ignored.",
     noValidFilesSelected: "No valid files selected",
     noValidFilesSelectedDescription: "No supported file types were selected for the current project type. Please try again.",
-    unsupportedFileFoundTitle: "Unsupported File",
-    unsupportedFileFoundDescription: "File '{fileName}' is not standard for a '{projectType}' project. Add it anyway?",
-    addAnywayButton: "Add Anyway",
     
     // RecentFilesList
     processedHistory: "Processed History",
@@ -55,6 +50,7 @@ export const translations = {
     selectFilesFromProjectTitle: "Select Files from: {projectName}",
     projectPageIndicator: "({currentIndex} of {totalProjects})",
     selectFilesModalDescription: "Select the files to include. Primary files for the project type are selected by default.",
+    onlyUnsupportedFilesDescription: "No supported files were found, but you can add any of the files listed below.",
     projectFiles: "Project Files",
     filesFromProject: "Files from: {projectName}",
     currentProjectFallbackName: "Current Project",
@@ -88,6 +84,8 @@ export const translations = {
     couldNotCopy: "Could not copy to clipboard.",
     fileContentCopied: "Content of {fileName} copied.",
     couldNotCopyToClipboard: "Could not copy to clipboard.", 
+    unsupportedFilesFound: "{count} unsupported files found",
+    add: "Add",
 
     // ManualAddContentModal
     addManualContentTitle: "Add Content Manually",
@@ -177,15 +175,10 @@ export const translations = {
     selectFoldersOrFiles: "Seleccionar Carpetas o Archivos",
     compressedFileNotSupported: "Archivo Comprimido no Soportado",
     compressedRarFileDescription: "El archivo '{fileName}' es .RAR y no está soportado. Por favor, extráelo primero. Los archivos .ZIP sí están soportados.",
-    unsupportedFile: "Archivo no soportado para tipo '{projectType}'",
-    unsupportedFileDescription: "El archivo '{fileName}' no es de un tipo soportado para el tipo de proyecto seleccionado y será ignorado. Soportados: {supportedExtensions}",
     unsupportedItem: "Elemento no soportado",
     unsupportedItemDescription: "El elemento '{fileName}' no es una carpeta o un archivo soportado y será ignorado.",
     noValidFilesSelected: "Sin archivos válidos",
     noValidFilesSelectedDescription: "No se seleccionaron archivos de tipos soportados para el tipo de proyecto actual. Por favor, inténtalo de nuevo.",
-    unsupportedFileFoundTitle: "Archivo No Soportado",
-    unsupportedFileFoundDescription: "El archivo '{fileName}' no es estándar para un proyecto '{projectType}'. ¿Añadir de todas formas?",
-    addAnywayButton: "Añadir Igualmente",
 
     // RecentFilesList
     processedHistory: "Historial de Procesados",
@@ -201,6 +194,7 @@ export const translations = {
     selectFilesFromProjectTitle: "Seleccionar Archivos de: {projectName}",
     projectPageIndicator: "({currentIndex} de {totalProjects})",
     selectFilesModalDescription: "Selecciona los archivos a incluir. Los archivos primarios para el tipo de proyecto se seleccionan por defecto.",
+    onlyUnsupportedFilesDescription: "No se encontraron archivos soportados, pero puedes añadir los que se listan abajo.",
     projectFiles: "Archivos de Proyectos",
     filesFromProject: "Files from: {projectName}",
     currentProjectFallbackName: "Proyecto Actual",
@@ -234,6 +228,8 @@ export const translations = {
     couldNotCopy: "No se pudo copiar al portapapeles.",
     fileContentCopied: "Contenido de {fileName} copiado.",
     couldNotCopyToClipboard: "No se pudo copiar.",
+    unsupportedFilesFound: "{count} archivos no soportados",
+    add: "Añadir",
 
     // ManualAddContentModal
     addManualContentTitle: "Añadir Contenido Manualmente",

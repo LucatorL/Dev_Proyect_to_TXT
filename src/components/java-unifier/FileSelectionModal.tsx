@@ -1,4 +1,3 @@
-
 // components/java-unifier/FileSelectionModal.tsx
 "use client"
 
@@ -19,16 +18,19 @@ import { Textarea } from "@/components/ui/textarea";
 import { Label } from "@/components/ui/label";
 import type { ProcessedFile, ProjectFile, PackageGroup, ProjectGroup } from '@/types/java-unifier';
 import { unifyProjectFiles, getProjectBaseName, type ProjectType } from '@/lib/file-processor';
-import { Copy, Download, Eye, CheckSquare, Square, FileText, FileCode, Database, Settings2, Info, ChevronLeft, ChevronRight, PlusCircle, Globe, Combine, Code, FileJson, FileKey } from 'lucide-react';
+import { Copy, Download, Eye, CheckSquare, Square, FileText, FileCode, Database, Settings2, Info, ChevronLeft, ChevronRight, PlusCircle, Globe, Combine, Code, FileJson, FileKey, AlertTriangle } from 'lucide-react';
 import { useToast } from '@/hooks/use-toast';
 import { Tooltip, TooltipContent, TooltipProvider, TooltipTrigger } from "@/components/ui/tooltip";
 import { ManualAddContentModal } from '@/components/java-unifier/ManualAddContentModal';
 import { t, type Language, DEFAULT_PACKAGE_NAME_LOGIC, OTHER_FILES_PACKAGE_NAME_LOGIC } from '@/lib/translations';
+import { Accordion, AccordionContent, AccordionItem, AccordionTrigger } from "@/components/ui/accordion";
 
 interface FileSelectionModalProps {
   isOpen: boolean;
   onClose: () => void; 
   projectsToProcess: ProjectFile[];
+  unsupportedFiles: FileSystemFileEntry[];
+  onAddUnsupportedFile: (entry: FileSystemFileEntry) => void;
   onSingleProjectProcessed: (projectId: string, downloadData: { fileName: string; content: string }) => void;
   onMultiProjectProcessed: (projectIdsToRemove: string[], downloadData: { fileName: string; content: string }) => void;
   isMultiProjectMode: boolean;
@@ -92,6 +94,8 @@ export function FileSelectionModal({
   isOpen,
   onClose,
   projectsToProcess,
+  unsupportedFiles,
+  onAddUnsupportedFile,
   onSingleProjectProcessed,
   onMultiProjectProcessed,
   isMultiProjectMode,
@@ -314,12 +318,16 @@ export function FileSelectionModal({
   };
 
 
-  if (!isOpen || projectsToProcess.length === 0) return null; 
+  if (!isOpen) return null; 
   const currentSingleProjectNameForTitle = !isMultiProjectMode && currentDisplayProjects[currentProjectIndex] ? currentDisplayProjects[currentProjectIndex].name : (projectsToProcess[0]?.name || 'Proyecto');
 
   return (
     <Dialog open={isOpen} onOpenChange={(open) => { if(!open) onClose(); }}>
-      <DialogContent className="max-w-4xl h-[90vh] flex flex-col p-0">
+      <DialogContent onInteractOutside={(e) => {
+        if ((e.target as HTMLElement)?.closest('[data-toast-viewport="true"]')) {
+          e.preventDefault();
+        }
+      }} className="max-w-4xl h-[90vh] flex flex-col p-0">
         {!isMultiProjectMode && projectsToProcess.length > 1 && (
           <>
             <Button
@@ -355,7 +363,7 @@ export function FileSelectionModal({
             )}
           </DialogTitle>
           <DialogDescription>
-            {t('selectFilesModalDescription', currentLanguage)}
+            {projectsToProcess.length > 0 ? t('selectFilesModalDescription', currentLanguage) : t('onlyUnsupportedFilesDescription', currentLanguage) }
           </DialogDescription>
         </DialogHeader>
 
@@ -423,6 +431,36 @@ export function FileSelectionModal({
                 </div>
               ))}
             </ScrollArea>
+            
+            {unsupportedFiles.length > 0 && (
+              <div className="pt-2 mt-2">
+                  <Accordion type="single" collapsible defaultValue="item-1">
+                      <AccordionItem value="item-1">
+                          <AccordionTrigger className="text-sm font-semibold hover:no-underline p-2 rounded-md hover:bg-secondary">
+                              <div className="flex items-center text-yellow-600 dark:text-yellow-400">
+                                  <AlertTriangle className="w-4 h-4 mr-2" />
+                                  <span>{t('unsupportedFilesFound', currentLanguage, { count: unsupportedFiles.length })}</span>
+                              </div>
+                          </AccordionTrigger>
+                          <AccordionContent className="pt-2">
+                              <ScrollArea className="h-[120px] p-1 border rounded-md">
+                                  <div className="space-y-1 pr-2">
+                                      {unsupportedFiles.map(entry => (
+                                          <div key={entry.fullPath} className="flex items-center justify-between text-sm py-0.5 px-1 rounded hover:bg-accent/50 group">
+                                              <span className="truncate flex-grow" title={entry.name}>{entry.name}</span>
+                                              <Button size="sm" variant="ghost" className="h-7" onClick={() => onAddUnsupportedFile(entry)}>
+                                                  {t('add', currentLanguage)}
+                                              </Button>
+                                          </div>
+                                      ))}
+                                  </div>
+                              </ScrollArea>
+                          </AccordionContent>
+                      </AccordionItem>
+                  </Accordion>
+              </div>
+            )}
+
             <div className="pt-2 text-center border-t mt-2">
                 <Button variant="outline" size="sm" onClick={() => setIsManualAddModalOpen(true)}>
                     <PlusCircle className="mr-2 h-4 w-4" /> {t('addManually', currentLanguage)}
