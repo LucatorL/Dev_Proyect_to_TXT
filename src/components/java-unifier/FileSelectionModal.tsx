@@ -17,7 +17,7 @@ import { ScrollArea } from "@/components/ui/scroll-area";
 import { Textarea } from "@/components/ui/textarea";
 import { Label } from "@/components/ui/label";
 import type { ProcessedFile, ProjectFile, PackageGroup, ProjectGroup, CommentOption } from '@/types/java-unifier';
-import { unifyProjectFiles, getProjectBaseName, type ProjectType } from '@/lib/file-processor';
+import { unifyProjectFiles, getProjectBaseName, type ProjectType, readFileContent, getFileExtension } from '@/lib/file-processor';
 import { Copy, Download, Eye, CheckSquare, Square, FileText, FileCode, Database, Settings2, Info, ChevronLeft, ChevronRight, PlusCircle, Globe, Combine, Code, FileJson, FileKey, AlertTriangle } from 'lucide-react';
 import { useToast } from '@/hooks/use-toast';
 import { Tooltip, TooltipContent, TooltipProvider, TooltipTrigger } from "@/components/ui/tooltip";
@@ -124,6 +124,22 @@ export function FileSelectionModal({
         default: return '';
     }
   }, [currentLanguage]);
+
+  const handlePreviewOtherFile = async (entry: FileSystemFileEntry) => {
+    try {
+        const file = await new Promise<File>((resolve, reject) => entry.file(resolve, reject));
+        const content = await readFileContent(file);
+        const fileType = getFileExtension(file.name);
+        setIndividualFilePreview({ name: file.name, content, fileType });
+    } catch (error) {
+        console.error("Error reading file for preview:", error);
+        toast({
+            title: t('error', currentLanguage),
+            description: t('processingErrorToastDescriptionShort', currentLanguage, { fileName: entry.name }),
+            variant: "destructive",
+        });
+    }
+  };
 
   useEffect(() => {
     setCurrentDisplayProjects(projectsToProcess);
@@ -460,10 +476,27 @@ export function FileSelectionModal({
                                         <div className="space-y-1 pr-2">
                                             {projectGroup.otherFiles.map(entry => (
                                                 <div key={entry.fullPath} className="flex items-center justify-between text-sm py-0.5 px-1 rounded hover:bg-accent/50 group">
-                                                    <span className="truncate flex-grow" title={entry.name}>{entry.name}</span>
-                                                    <Button size="sm" variant="ghost" className="h-7" onClick={() => onAddOtherTypeFile(entry, projectGroup.projectActualId)}>
-                                                        {t('add', currentLanguage)}
-                                                    </Button>
+                                                    <div className="flex items-center flex-grow overflow-hidden">
+                                                        {getFileIcon(getFileExtension(entry.name))}
+                                                        <span className="truncate" title={entry.name}>{entry.name}</span>
+                                                    </div>
+                                                    <div className="flex items-center shrink-0">
+                                                        <TooltipProvider delayDuration={300}>
+                                                            <Tooltip>
+                                                                <TooltipTrigger asChild>
+                                                                    <Button variant="ghost" size="icon" className="w-6 h-6" onClick={() => handlePreviewOtherFile(entry)}>
+                                                                        <Eye className="w-3.5 h-3.5" />
+                                                                    </Button>
+                                                                </TooltipTrigger>
+                                                                <TooltipContent side="top">
+                                                                    <p>{t('previewFileTitle', currentLanguage, { fileName: entry.name })}</p>
+                                                                </TooltipContent>
+                                                            </Tooltip>
+                                                        </TooltipProvider>
+                                                        <Button size="sm" variant="ghost" className="h-7" onClick={() => onAddOtherTypeFile(entry, projectGroup.projectActualId)}>
+                                                            {t('add', currentLanguage)}
+                                                        </Button>
+                                                    </div>
                                                 </div>
                                             ))}
                                         </div>
