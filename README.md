@@ -2,38 +2,11 @@
 
 <div align="center">
 
-<table>
-<tr>
-<td align="center" width="50%" style="border-right: 1px solid #ddd;">
+# Dev_Proyect_to_TXT
 
-### 💻 **Desktop Application**
-
-<br>
-
-![IN DEVELOPMENT](https://img.shields.io/badge/STATUS-IN%20DEVELOPMENT-yellow?style=for-the-badge)
-
-<br>
-
-**Full version with all features**
-
-<sub>A standalone desktop version is planned.</sub>
-
-</td>
-<td align="center" width="50%">
-
-### 🌐 **Web Version**
-
-<br>
-
-[![OPEN](https://img.shields.io/badge/OPEN-ONLINE-0066FF?style=for-the-badge)](https://dev-proyect-to-txt.vercel.app)
-
-<br>
-
-**Use it directly from your browser**
-
-</td>
-</tr>
-</table>
+| 🖥️ **Desktop Application** | 🌐 **Web Version** |
+| :---: | :---: |
+| ![Status](https://img.shields.io/badge/DESKTOP-EN_DESARROLLO-orange?style=for-the-badge) <br> <sub>A standalone desktop version is planned.</sub> | [![Open Online](https://img.shields.io/badge/OPEN-ONLINE-2ea44f?style=for-the-badge&logo=vercel&logoColor=white)](https://dev-proyect-to-txt.vercel.app) <br> <sub>Use it directly from your browser.</sub> |
 
 </div>
 
@@ -67,11 +40,11 @@ This project is an evolution and web adaptation of the original [JavaSourceToTxt
 2.  **Select Project Type:** In the header, choose `Java`, `Web`, or `Total`. This adjusts which files are recognized and selected by default.
 3.  **Drag & Drop Files:** Drag your project folder(s), `.zip` archives, or individual files onto the main dropzone.
 4.  **Manage Files for Unification:**
-    *   A modal will appear listing all processed files, grouped by project and directory/package.
-    *   Use the "Select All" / "Deselect All" buttons or individual checkboxes to refine your selection.
-    *   Files not standard for the project type will appear in a separate, collapsible section, ready to be previewed and added.
-    *   Toggle **"Unify Multiple Projects"** to process all projects together or one at a time.
-    *   Use the **"Comment Handling"** dropdown to control how comments are treated in the final output.
+    * A modal will appear listing all processed files, grouped by project and directory/package.
+    * Use the "Select All" / "Deselect All" buttons or individual checkboxes to refine your selection.
+    * Files not standard for the project type will appear in a separate, collapsible section, ready to be previewed and added.
+    * Toggle **"Unify Multiple Projects"** to process all projects together or one at a time.
+    * Use the **"Comment Handling"** dropdown to control how comments are treated in the final output.
 5.  **Preview Content:** The right panel shows a live preview of the final text file. You can disable this for better performance with large projects.
 6.  **Unify and Download:** Click **"Accept and Save"**. A `.txt` file containing the unified content will be downloaded instantly.
 
@@ -93,5 +66,3 @@ This project is open-source, licensed under the MIT License.
 
 ---
 _This project is a web adaptation and expansion of the original [JavaSourceToTxt application by @LucatorL](https://github.com/LucatorL/JavaSourceToTxt)._
-
-</div>
