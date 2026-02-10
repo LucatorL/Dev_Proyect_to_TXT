@@ -1,8 +1,8 @@
 # Dev_Proyect_to_TXT
 
-| Web Version                                                                                                                              | Repository                                                                                                                     |
-| ---------------------------------------------------------------------------------------------------------------------------------------- | ------------------------------------------------------------------------------------------------------------------------------ |
-| [**[OPEN ONLINE]**](https://dev-proyect-to-txt.vercel.app)<br><sub>Use it directly from your browser.</sub> | [**[VIEW SOURCE]**](https://github.com/LucatorL/Dev_Proyect_to_TXT)<br><sub>Explore the code and contribute.</sub> |
+| Web Version                                                                                                                              | Desktop Version                                                                                                   |
+| ---------------------------------------------------------------------------------------------------------------------------------------- | ----------------------------------------------------------------------------------------------------------------------- |
+| [**[OPEN ONLINE]**](https://dev-proyect-to-txt.vercel.app)<br><sub>Use it directly from your browser.</sub> | **[IN DEVELOPMENT]**<br><sub>A standalone desktop version is planned.</sub> |
 
 <br>
 
@@ -52,7 +52,7 @@ This project is an evolution and web adaptation of the original [JavaSourceToTxt
 
 ## 🤝 Contributing
 
-Contributions are highly welcome! Feel free to fork the repository, make your changes, and open a Pull Request. You can also [open an issue](https://github.com/LucatorL/Dev_Proyect_to_TXT/issues) for bugs, feature requests, or suggestions.
+Contributions are highly welcome! Feel free to fork the [repository](https://github.com/LucatorL/Dev_Proyect_to_TXT), make your changes, and open a Pull Request. You can also [open an issue](https://github.com/LucatorL/Dev_Proyect_to_TXT/issues) for bugs, feature requests, or suggestions.
 
 ## 📜 License
 
