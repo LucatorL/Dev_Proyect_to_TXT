@@ -75,7 +75,7 @@ export default function DevProjectUnifierPage() {
     toast({ title: t('successToastTitle', language), description: t('entryDeletedFromHistoryToast', language) });
   }, [setRecents, toast, language]);
 
-  const handleManualContentAddRequested = (fileName: string, content: string, targetProjectId: string | 'new_project') => {
+  const handleManualContentAddRequested = useCallback((fileName: string, content: string, targetProjectId: string | 'new_project') => {
     if (!fileName.trim() || !content.trim()) {
       toast({ title: t('error', language), description: t('fileNameEmptyError', language), variant: "destructive" });
       return;
@@ -141,14 +141,12 @@ export default function DevProjectUnifierPage() {
         return [...prevProjects, newProject];
       }
     });
-  };
+  }, [projectType, isSelectionModalOpen, addRecentEntry, toast, language]);
 
-  const handleAddOtherTypeFile = async (entry: FileSystemFileEntry, targetProjectId: string) => {
+  const handleAddOtherTypeFile = useCallback((entry: FileSystemFileEntry, targetProjectId: string) => {
     if (!entry.isFile) return;
 
-    try {
-        const file = await new Promise<File>((resolve, reject) => entry.file(resolve, reject));
-        const content = await readFileContent(file);
+    const addFileToState = (file: File, content: string) => {
         const fileName = file.name;
         const fileType = getFileExtension(fileName);
 
@@ -178,16 +176,31 @@ export default function DevProjectUnifierPage() {
                 return proj;
             });
         });
+    };
 
-    } catch (error) {
-        console.error("Error reading file to add anyway:", error);
-        toast({
-            title: t('processingErrorToastTitle', language),
-            description: t('processingErrorToastDescriptionShort', language, { fileName: entry.name }),
-            variant: "destructive",
-        });
-    }
-  };
+    entry.file(
+        (file) => {
+            readFileContent(file)
+                .then(content => addFileToState(file, content))
+                .catch(error => {
+                    console.error("Error reading file to add anyway:", error);
+                    toast({
+                        title: t('processingErrorToastTitle', language),
+                        description: t('processingErrorToastDescriptionShort', language, { fileName: entry.name }),
+                        variant: "destructive",
+                    });
+                });
+        },
+        (error) => {
+            console.error("Error getting file from entry:", error);
+            toast({
+                title: t('processingErrorToastTitle', language),
+                description: t('processingErrorToastDescriptionShort', language, { fileName: entry.name }),
+                variant: "destructive",
+            });
+        }
+    );
+  }, [projectType, toast, language]);
 
 
   const handleFilesDropped = async (droppedItems: FileSystemFileEntry[]) => {
@@ -466,7 +479,7 @@ export default function DevProjectUnifierPage() {
           </a>.
         </span>
         <Button variant="link" asChild className="mt-2 sm:mt-0 text-muted-foreground hover:text-primary">
-          <a href="https://github.com/LucatorL/JavaSourceToTxt-WEB-/issues" target="_blank" rel="noopener noreferrer">
+          <a href="https://github.com/LucatorL/Dev_Proyect_to_TXT/issues" target="_blank" rel="noopener noreferrer">
             <Github className="mr-2 h-4 w-4" />
             {t('reportIssueLinkText', language)}
           </a>
