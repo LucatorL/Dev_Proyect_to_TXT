@@ -1,8 +1,41 @@
 # Dev_Proyect_to_TXT
 
-| Web Version                                                                                                                              | Desktop Version                                                                                                   |
-| ---------------------------------------------------------------------------------------------------------------------------------------- | ----------------------------------------------------------------------------------------------------------------------- |
-| [**[OPEN ONLINE]**](https://dev-proyect-to-txt.vercel.app)<br><sub>Use it directly from your browser.</sub> | **[IN DEVELOPMENT]**<br><sub>A standalone desktop version is planned.</sub> |
+<div align="center">
+
+<table>
+<tr>
+<td align="center" width="50%" style="border-right: 1px solid #ddd;">
+
+### 💻 **Desktop Application**
+
+<br>
+
+![IN DEVELOPMENT](https://img.shields.io/badge/STATUS-IN%20DEVELOPMENT-yellow?style=for-the-badge)
+
+<br>
+
+**Full version with all features**
+
+<sub>A standalone desktop version is planned.</sub>
+
+</td>
+<td align="center" width="50%">
+
+### 🌐 **Web Version**
+
+<br>
+
+[![OPEN](https://img.shields.io/badge/OPEN-ONLINE-0066FF?style=for-the-badge)](https://dev-proyect-to-txt.vercel.app)
+
+<br>
+
+**Use it directly from your browser**
+
+</td>
+</tr>
+</table>
+
+</div>
 
 <br>
 
@@ -60,3 +93,5 @@ This project is open-source, licensed under the MIT License.
 
 ---
 _This project is a web adaptation and expansion of the original [JavaSourceToTxt application by @LucatorL](https://github.com/LucatorL/JavaSourceToTxt)._
+
+</div>
