@@ -1,28 +1,13 @@
+
 import JSZip from 'jszip';
-import type { ProcessedFile, ProjectFile, CommentOption } from '@/types/java-unifier';
+import type { ProcessedFile, ProjectFile, UnificationResult, UnifiedFileMapEntry } from '@/types/java-unifier';
 import { DEFAULT_PACKAGE_NAME_LOGIC, OTHER_FILES_PACKAGE_NAME_LOGIC } from '@/lib/translations';
+import { ALL_SUPPORTED_EXTENSIONS, getFileExtension, MAX_FILE_SIZE, PROJECT_CONFIG } from '@/lib/file-types';
+import type { ProjectType } from '@/lib/file-types';
+export { ALL_SUPPORTED_EXTENSIONS, getFileExtension, MAX_FILE_SIZE, PROJECT_CONFIG } from '@/lib/file-types';
+export type { ProjectType } from '@/lib/file-types';
 
-const MAX_FILE_SIZE = 1024 * 1024 * 5; // 5MB limit per file
-const MAX_TOTAL_FILES = 250; // Max number of files to process
-
-export const PROJECT_CONFIG = {
-  java: {
-    extensions: ['java', 'xml', 'properties', 'pom', 'gradle', 'kt', 'kts', 'sql', 'classpath', 'project'],
-    defaultSelected: ['java', 'kt', 'xml', 'gradle', 'pom']
-  },
-  web: {
-    extensions: ['html', 'css', 'scss', 'less', 'js', 'ts', 'jsx', 'tsx', 'json', 'md', 'svg', 'vue', 'svelte', 'yaml', 'yml', 'env', 'mjs', 'cjs', 'dockerfile', 'gitignore', 'package.json', 'tsconfig.json'],
-    defaultSelected: ['html', 'css', 'scss', 'js', 'ts', 'jsx', 'tsx', 'vue', 'svelte']
-  },
-  total: {
-    extensions: ['java', 'xml', 'properties', 'pom', 'gradle', 'kt', 'kts', 'sql', 'html', 'css', 'scss', 'less', 'js', 'ts', 'jsx', 'tsx', 'json', 'md', 'svg', 'vue', 'svelte', 'yaml', 'yml', 'env', 'mjs', 'cjs', 'dockerfile', 'gitignore', 'package.json', 'tsconfig.json', 'txt', 'csv', 'dat', 'classpath', 'project', 'py', 'rb', 'php', 'sh', 'bat'],
-    defaultSelected: ['java', 'kt', 'js', 'ts', 'jsx', 'tsx', 'py', 'html', 'css', 'sql', 'json', 'md']
-  }
-};
-export type ProjectType = keyof typeof PROJECT_CONFIG;
-
-// A flat list of all supported extensions across all project types
-export const ALL_SUPPORTED_EXTENSIONS = [...new Set(Object.values(PROJECT_CONFIG).flatMap(config => config.extensions))];
+export const MAX_TOTAL_FILES = 250; // Max number of files to process
 
 const JAVA_EXTENSION = 'java';
 
@@ -40,245 +25,247 @@ export function getProjectBaseName(name: string): string {
   return baseName.length > 0 ? baseName : "UntitledProject";
 }
 
-export function getFileExtension(fileName: string): string {
-    if (!fileName || typeof fileName !== 'string') return 'unknown';
-
-    // Handle special full filenames first
-    const lowerFileName = fileName.toLowerCase();
-    if (lowerFileName.endsWith('package.json')) return 'package.json';
-    if (lowerFileName.endsWith('tsconfig.json')) return 'tsconfig.json';
-    if (lowerFileName.endsWith('.gitignore')) return 'gitignore';
-    if (lowerFileName.endsWith('dockerfile')) return 'dockerfile';
-
-    if (fileName.startsWith('.')) { 
-        const potentialExtension = fileName.substring(1).toLowerCase();
-        if (ALL_SUPPORTED_EXTENSIONS.includes(potentialExtension)) {
-            return potentialExtension;
-        }
-    }
-    if (lowerFileName === 'pom.xml') return 'pom';
-    if (lowerFileName.endsWith('.gradle')) return 'gradle';
-
-
-    const parts = fileName.split('.');
-    if (parts.length > 1) {
-        const lastPart = parts.pop()?.toLowerCase();
-        if (lastPart && ALL_SUPPORTED_EXTENSIONS.includes(lastPart)) {
-            return lastPart;
-        }
-    }
-    return 'unknown';
-}
-
-
 function isSupportedFile(fileName: string, projectType: ProjectType): boolean {
   const extension = getFileExtension(fileName);
   return PROJECT_CONFIG[projectType].extensions.includes(extension);
 }
 
-async function getFileEntriesInDirectory(directory: FileSystemDirectoryEntry): Promise<FileSystemFileEntry[]> {
-  const fileEntries: FileSystemFileEntry[] = [];
-  const reader = directory.createReader();
+export type HandleItem = { kind: 'local-handle'; handle: FileSystemFileHandle | FileSystemDirectoryHandle };
+export type DroppedItem = FileSystemEntry | File | HandleItem;
+export type SourceFileEntry = Pick<FileSystemFileEntry, 'name' | 'fullPath' | 'isFile' | 'file'>;
+export interface ImportIssue {
+  path: string;
+  reason: 'size' | 'limit' | 'read' | 'archive' | 'archivePassword' | 'archiveVolume' | 'unsupported';
+}
 
-  return new Promise<FileSystemFileEntry[]>((resolve, reject) => {
-    const readEntries = () => {
-      reader.readEntries(async (entries) => {
-        if (entries.length === 0) {
-          resolve(fileEntries);
-          return;
-        }
-        for (const entry of entries) {
-          if (entry.isFile) {
-            // Add webkitRelativePath polyfill for files from manual selection
-            const file = await new Promise<File>((res) => (entry as FileSystemFileEntry).file(res));
-            if (!(file as any).webkitRelativePath) { 
-                Object.defineProperty(file, 'webkitRelativePath', { 
-                    value: entry.fullPath.startsWith('/') ? entry.fullPath.substring(1) : entry.fullPath,
-                    writable: true 
-                });
-            }
-            fileEntries.push(entry as FileSystemFileEntry);
-          } else if (entry.isDirectory) {
-            fileEntries.push(...await getFileEntriesInDirectory(entry as FileSystemDirectoryEntry));
-          }
-        }
-        readEntries();
-      }, reject);
-    };
-    readEntries();
+function fileEntry(file: File, fullPath: string): SourceFileEntry {
+  return { name: file.name, fullPath, isFile: true, file: resolve => resolve(file) };
+}
+
+class OversizedZipEntryError extends Error {}
+
+type ZipEntryStream = {
+  on(event: 'data', callback: (chunk: Uint8Array) => void): ZipEntryStream;
+  on(event: 'error', callback: (error: Error) => void): ZipEntryStream;
+  on(event: 'end', callback: () => void): ZipEntryStream;
+  pause(): void;
+  resume(): void;
+};
+
+function readZipEntryWithinLimit(entry: JSZip.JSZipObject): Promise<Blob> {
+  return new Promise((resolve, reject) => {
+    const stream = (entry as JSZip.JSZipObject & { internalStream(type: string): ZipEntryStream }).internalStream('uint8array');
+    let chunks: Uint8Array[] = [];
+    let size = 0;
+    stream.on('data', chunk => {
+      size += chunk.length;
+      if (size > MAX_FILE_SIZE) {
+        stream.pause();
+        chunks = [];
+        reject(new OversizedZipEntryError());
+      } else {
+        chunks.push(chunk);
+      }
+    }).on('error', error => {
+      chunks = [];
+      reject(error);
+    }).on('end', () => {
+      const blob = new Blob(chunks.map(chunk => new Uint8Array(chunk)));
+      chunks = [];
+      resolve(blob);
+    }).resume();
   });
 }
 
-
-async function _processZipFile(file: File, projectType: ProjectType): Promise<ProjectFile | null> {
-    const projectName = getProjectBaseName(file.name);
-    const project: ProjectFile = {
-        id: `${projectName}-${Date.now()}-${Math.random()}`,
-        name: projectName,
-        type: 'folder', // Treat as folder
-        files: [],
-        timestamp: Date.now(),
-    };
-
-    try {
-        const zip = await JSZip.loadAsync(file);
-        const fileProcessingPromises: Promise<ProcessedFile | null>[] = [];
-
-        zip.forEach((relativePath, zipEntry) => {
-            if (!zipEntry.dir) {
-                const fileName = zipEntry.name.split('/').pop() || zipEntry.name;
-                
-                if (isSupportedFile(fileName, projectType)) {
-                    const promise = (async () => {
-                        try {
-                            const content = await zipEntry.async('string');
-                            if (new Blob([content]).size > MAX_FILE_SIZE) {
-                                console.warn(`File ${fileName} in zip exceeds size limit and was skipped.`);
-                                return null;
-                            }
-                            const fileType = getFileExtension(fileName);
-                            const { path, packageName } = parseFileMeta(zipEntry.name, content, fileType, projectType);
-
-                            return {
-                                id: `${project.id}-${path}-${fileName}-${Math.random()}`,
-                                path: path,
-                                name: fileName,
-                                content: content,
-                                packageName: packageName,
-                                fileType: fileType,
-                                projectName: project.name,
-                                selected: PROJECT_CONFIG[projectType].defaultSelected.includes(fileType),
-                            };
-                        } catch (readError) {
-                            console.warn(`Could not read file ${fileName} from zip:`, readError);
-                            return null;
-                        }
-                    })();
-                    fileProcessingPromises.push(promise);
-                }
-                // Note: 'otherFiles' from zips are not handled in this version for simplicity.
-            }
-        });
-
-        const allFiles = (await Promise.all(fileProcessingPromises)).filter((f): f is ProcessedFile => f !== null);
-        project.files.push(...allFiles);
-
-        if (project.files.length > 0) {
-            return project;
-        }
-
-    } catch (e) {
-        console.error(`Failed to process zip file ${file.name}: `, e);
+async function* directoryFiles(directory: FileSystemDirectoryEntry, issues: ImportIssue[]): AsyncGenerator<FileSystemFileEntry> {
+  const reader = directory.createReader();
+  try {
+    while (true) {
+      const entries = await new Promise<FileSystemEntry[]>((resolve, reject) => reader.readEntries(resolve, reject));
+      if (!entries.length) return;
+      for (const entry of entries) {
+        if (entry.isDirectory) yield* directoryFiles(entry as FileSystemDirectoryEntry, issues);
+        else if (entry.isFile) yield entry as FileSystemFileEntry;
+      }
     }
-    return null;
+  } catch {
+    issues.push({ path: directory.fullPath, reason: 'read' });
+  }
 }
 
-
-export async function processDroppedItems(items: FileSystemFileEntry[], projectType: ProjectType): Promise<{ projects: ProjectFile[] }> {
-  const projects: ProjectFile[] = [];
-  let totalFilesProcessed = 0;
-
-  const projectMap = new Map<string, ProjectFile>();
-
-  for (const item of items) {
-    if (totalFilesProcessed >= MAX_TOTAL_FILES) {
-        console.warn(`Reached maximum file processing limit (${MAX_TOTAL_FILES}).`);
-        break;
+async function* handleDirectoryFiles(directory: FileSystemDirectoryHandle, path: string, issues: ImportIssue[]): AsyncGenerator<SourceFileEntry> {
+  try {
+    const entries = (directory as unknown as {
+      entries(): AsyncIterable<[string, FileSystemFileHandle | FileSystemDirectoryHandle]>;
+    }).entries();
+    for await (const [name, child] of entries) {
+      if (child.kind === 'directory') yield* handleDirectoryFiles(child, `${path}/${name}`, issues);
+      else yield { name, fullPath: `${path}/${name}`, isFile: true,
+        file: (resolve, reject) => { child.getFile().then(resolve, reject); } };
     }
+  } catch {
+    issues.push({ path, reason: 'read' });
+  }
+}
 
-    if (item.isFile && item.name.toLowerCase().endsWith('.zip')) {
+type RarResult = {
+  entries: { name: string; path: string; bytes: ArrayBuffer }[];
+  issues: ImportIssue[];
+};
+
+async function extractRar(file: File, remainingFiles: number): Promise<RarResult> {
+  const archive = await file.arrayBuffer();
+  return new Promise((resolve, reject) => {
+    const worker = new Worker(new URL('../workers/rar-extract.worker.ts', import.meta.url));
+    worker.onmessage = (event: MessageEvent<RarResult>) => { worker.terminate(); resolve(event.data); };
+    worker.onerror = error => { worker.terminate(); reject(error); };
+    worker.postMessage({ archive, archiveName: file.name, remainingFiles }, [archive]);
+  });
+}
+
+export async function processDroppedItems(items: DroppedItem[], projectType: ProjectType): Promise<{ projects: ProjectFile[]; issues: ImportIssue[] }> {
+  const projects: ProjectFile[] = [];
+  const issues: ImportIssue[] = [];
+  const pickedFolders = new Map<string, ProjectFile>();
+  let totalFiles = 0;
+  const makeProject = (name: string, type: 'folder' | 'file'): ProjectFile => {
+    const project: ProjectFile = { id: crypto.randomUUID(), name: getProjectBaseName(name), type, timestamp: Date.now(), files: [], otherFiles: [] };
+    projects.push(project);
+    return project;
+  };
+  const canAccept = (name: string, path: string) => {
+    if (!ALL_SUPPORTED_EXTENSIONS.includes(getFileExtension(name))) {
+      issues.push({ path, reason: 'unsupported' });
+      return false;
+    }
+    if (totalFiles >= MAX_TOTAL_FILES) {
+      issues.push({ path, reason: 'limit' });
+      return false;
+    }
+    return true;
+  };
+  const addFile = async (entry: SourceFileEntry, project: ProjectFile, checked = false) => {
+    if (!checked && !canAccept(entry.name, entry.fullPath)) return;
+    try {
+      const file = await new Promise<File>((resolve, reject) => entry.file(resolve, reject));
+      if (file.size > MAX_FILE_SIZE) {
+        issues.push({ path: entry.fullPath, reason: 'size' });
+        return;
+      }
+      if (!isSupportedFile(file.name, projectType)) {
+        project.otherFiles!.push(entry);
+      } else {
+        const content = await readFileContent(file);
+        const fileType = getFileExtension(file.name);
+        const meta = parseFileMeta(entry.fullPath.replace(/^\//, ''), content, fileType, projectType);
+        project.files.push({ id: crypto.randomUUID(), ...meta, name: file.name, content, fileType, projectName: project.name,
+          selected: PROJECT_CONFIG[projectType].defaultSelected.includes(fileType) });
+      }
+      totalFiles++;
+    } catch {
+      issues.push({ path: entry.fullPath, reason: 'read' });
+    }
+  };
+  const addZip = async (file: File) => {
+    const project = makeProject(file.name, 'folder');
+    try {
+      const zip = await JSZip.loadAsync(file);
+      let visitedEntries = 0;
+      for (const zipEntry of Object.values(zip.files)) {
+        if (++visitedEntries % 20 === 0) await new Promise<void>(resolve => setTimeout(resolve, 0));
+        if (zipEntry.dir) continue;
+        const name = zipEntry.name.split('/').pop()!;
+        const issuePath = `${file.name}/${zipEntry.name}`;
+        if (!canAccept(name, issuePath)) continue;
         try {
-            const file = await new Promise<File>((resolve, reject) => item.file(resolve, reject));
-            const zipProject = await _processZipFile(file, projectType);
-            if(zipProject && zipProject.files.length > 0) {
-                projects.push(zipProject);
-                totalFilesProcessed += zipProject.files.length;
-            }
-        } catch (e) {
-            console.error(`Error processing zip item ${item.name}:`, e);
+          // JSZip exposes the declared uncompressed size from the ZIP directory.
+          // The streaming check below also covers archives with incorrect metadata.
+          const declaredSize = (zipEntry as JSZip.JSZipObject & { _data?: { uncompressedSize?: number } })._data?.uncompressedSize;
+          if (typeof declaredSize === 'number' && declaredSize > MAX_FILE_SIZE) {
+            issues.push({ path: issuePath, reason: 'size' });
+            continue;
+          }
+          const blob = await readZipEntryWithinLimit(zipEntry);
+          await addFile(fileEntry(new File([blob], name), zipEntry.name), project, true);
+        } catch (error) {
+          issues.push({ path: issuePath, reason: error instanceof OversizedZipEntryError ? 'size' : 'read' });
         }
-    } else if (item.isDirectory) {
-        const fileEntries = await getFileEntriesInDirectory(item as FileSystemDirectoryEntry);
-        const projectName = getProjectBaseName(item.name);
-        let project = projectMap.get(projectName);
-        if (!project) {
-            project = {
-                id: `${projectName}-${Date.now()}-${Math.random()}`,
-                name: projectName, type: 'folder', files: [], timestamp: Date.now(), otherFiles: []
-            };
-            projectMap.set(projectName, project);
+      }
+    } catch {
+      issues.push({ path: file.name, reason: 'archive' });
+    }
+  };
+  const addRar = async (file: File) => {
+    const project = makeProject(file.name, 'folder');
+    try {
+      const result = await extractRar(file, MAX_TOTAL_FILES - totalFiles);
+      issues.push(...result.issues);
+      for (const entry of result.entries) {
+        const path = entry.path.replace(/\\/g, '/');
+        await addFile(fileEntry(new File([entry.bytes], entry.name), path), project, true);
+      }
+    } catch {
+      issues.push({ path: file.name, reason: 'archive' });
+    }
+    return project;
+  };
+  for (const item of items) {
+    if (!(item instanceof File) && 'kind' in item) {
+      const handle = item.handle;
+      if (handle.kind === 'directory') {
+        const project = makeProject(handle.name, 'folder');
+        project.sourceHandle = handle;
+        for await (const entry of handleDirectoryFiles(handle, handle.name, issues)) await addFile(entry, project);
+      } else {
+        try {
+          const file = await handle.getFile();
+          if (file.name.toLowerCase().endsWith('.zip')) {
+            const before = projects.length;
+            await addZip(file);
+            projects[before].sourceHandle = handle;
+          } else if (file.name.toLowerCase().endsWith('.rar')) {
+            (await addRar(file)).sourceHandle = handle;
+          } else {
+            const project = makeProject(file.name, 'file');
+            project.sourceHandle = handle;
+            await addFile(fileEntry(file, file.name), project);
+          }
+        } catch {
+          issues.push({ path: handle.name, reason: 'read' });
         }
-
-        for (const fileEntry of fileEntries) {
-             if (isSupportedFile(fileEntry.name, projectType)) {
-                 try {
-                     const file = await new Promise<File>((res) => fileEntry.file(res));
-                     if (file.size <= MAX_FILE_SIZE) {
-                         const content = await readFileContent(file);
-                         const filePathForMeta = (file as any).webkitRelativePath || fileEntry.fullPath;
-                         const fileType = getFileExtension(file.name);
-                         const { path, packageName } = parseFileMeta(filePathForMeta, content, fileType, projectType);
-                         
-                         project.files.push({
-                           id: `${project.id}-${path}-${file.name}-${Math.random()}`, 
-                           path, name: file.name, content, packageName, fileType,
-                           projectName: project.name,
-                           selected: PROJECT_CONFIG[projectType].defaultSelected.includes(fileType),
-                         });
-                         totalFilesProcessed++;
-                     }
-                 } catch (e) { console.warn(`Could not read file ${fileEntry.name}`, e); }
-             } else {
-                 const extension = getFileExtension(fileEntry.name);
-                 if (ALL_SUPPORTED_EXTENSIONS.includes(extension)) {
-                    project.otherFiles!.push(fileEntry);
-                 }
-             }
-        }
-
-    } else if (item.isFile) {
-        const projectName = getProjectBaseName(item.name);
-        let project = projectMap.get(projectName);
-        if (!project) {
-            project = {
-                id: `${projectName}-${Date.now()}-${Math.random()}`,
-                name: projectName, type: 'file', files: [], timestamp: Date.now(), otherFiles: []
-            };
-            projectMap.set(projectName, project);
-        }
-         if (isSupportedFile(item.name, projectType)) {
-             try {
-                 const file = await new Promise<File>((res) => (item as FileSystemFileEntry).file(res));
-                 if (file.size <= MAX_FILE_SIZE) {
-                     const content = await readFileContent(file);
-                     const fileType = getFileExtension(file.name);
-                     const { path, packageName } = parseFileMeta(file.name, content, fileType, projectType);
-
-                     project.files.push({
-                       id: `${project.id}-${path}-${file.name}-${Math.random()}`,
-                       path, name: file.name, content, packageName, fileType,
-                       projectName: project.name,
-                       selected: PROJECT_CONFIG[projectType].defaultSelected.includes(fileType),
-                     });
-                     totalFilesProcessed++;
-                 }
-             } catch(e) { console.warn(`Could not read file ${item.name}`, e); }
-         } else {
-            const extension = getFileExtension(item.name);
-            if (ALL_SUPPORTED_EXTENSIONS.includes(extension)) {
-                project.otherFiles!.push(item as FileSystemFileEntry);
-            }
-         }
+      }
+      continue;
+    }
+    if (!(item instanceof File) && item.isDirectory) {
+      const project = makeProject(item.name, 'folder');
+      for await (const entry of directoryFiles(item as FileSystemDirectoryEntry, issues)) await addFile(entry, project);
+      continue;
+    }
+    try {
+      const file = item instanceof File ? item : await new Promise<File>((resolve, reject) => (item as FileSystemFileEntry).file(resolve, reject));
+      if (file.name.toLowerCase().endsWith('.zip')) {
+        await addZip(file);
+        continue;
+      }
+      if (file.name.toLowerCase().endsWith('.rar')) {
+        await addRar(file);
+        continue;
+      }
+      const relativePath = file.webkitRelativePath || (!(item instanceof File) ? item.fullPath : file.name);
+      const folderName = (file.webkitRelativePath || '').split('/')[0];
+      let project: ProjectFile;
+      if (folderName) {
+        project = pickedFolders.get(folderName) ?? makeProject(folderName, 'folder');
+        pickedFolders.set(folderName, project);
+      } else {
+        project = makeProject(file.name, 'file');
+      }
+      await addFile(fileEntry(file, relativePath), project);
+    } catch {
+      issues.push({ path: item.name, reason: 'read' });
     }
   }
-
-  projectMap.forEach(proj => {
-    if (proj.files.length > 0 || (proj.otherFiles && proj.otherFiles.length > 0)) {
-      projects.push(proj);
-    }
-  });
-
-  return { projects };
+  return { projects: projects.filter(p => p.files.length || p.otherFiles?.length), issues };
 }
 
 
@@ -295,7 +282,7 @@ export function readFileContent(file: File): Promise<string> {
   });
 }
 
-function parseFileMeta(filePath: string, fileContent: string, fileType: string, projectType: ProjectType): { path: string; packageName: string } {
+export function parseFileMeta(filePath: string, fileContent: string, fileType: string, projectType: ProjectType): { path: string; packageName: string } {
   const normalizedPath = filePath.replace(/\\/g, '/');
   
   if (projectType === 'java' && fileType === JAVA_EXTENSION) {
@@ -325,112 +312,87 @@ export function extractJavaPackageName(content: string): string {
   return packageMatch && packageMatch[1] ? packageMatch[1] : DEFAULT_PACKAGE_NAME_LOGIC;
 }
 
-const removePastUnificationComments = (content: string): string => {
-    // This regex targets the specific comment patterns added by the app.
-    // It looks for lines starting with optional whitespace, then //, then ####, ====, or ----
-    const appCommentRegex = /(^\s*\/\/(#|={5,}|-{5,}).*$\r?\n?)/gm;
-    return content.replace(appCommentRegex, '');
-};
+export function unifyProjectFiles(
+    projects: ProjectFile[],
+    isMultiProjectUnification: boolean
+): UnificationResult {
+    let contentBuilder = "";
+    const fileMap: UnifiedFileMapEntry[] = [];
 
-const removeAllCommentsFromCode = (content: string, fileType: string): string => {
-    let cleanedContent = content;
-    // Generic C-style comments (JS, Java, CSS, etc.)
-    cleanedContent = cleanedContent.replace(/\/\*[\s\S]*?\*\/|\/\/.*/g, '');
-    
-    // Specific types
-    if (['xml', 'html', 'vue', 'svelte', 'pom'].includes(fileType)) {
-        cleanedContent = cleanedContent.replace(/<!--[\s\S]*?-->/g, '');
-    }
-    if (['py', 'sh', 'rb', 'yaml', 'yml'].includes(fileType)) {
-        cleanedContent = cleanedContent.replace(/#.*/g, '');
-    }
-    if (['sql'].includes(fileType)) {
-        cleanedContent = cleanedContent.replace(/--.*/g, '');
-    }
-    
-    // Remove empty lines that might result from comment removal
-    return cleanedContent.replace(/^\s*[\r\n]/gm, '').trim();
-};
+    projects.forEach((project, projectIndex) => {
+        const selectedFiles = project.files.filter(f => f.selected);
+        if (selectedFiles.length === 0) return;
 
-
-export function unifyProjectFiles( 
-  projects: ProjectFile[],
-  isMultiProjectUnification: boolean,
-  commentOption: CommentOption = 'default'
-): string {
-  const sb: string[] = [];
-  
-  for (const project of projects) {
-    const selectedFiles = project.files.filter(f => f.selected);
-    if (selectedFiles.length === 0) continue;
-
-    if (commentOption !== 'noAppComments' && commentOption !== 'removeAllComments') {
-        if (isMultiProjectUnification || sb.length === 0) { 
-            if (sb.length > 0) sb.push("\n\n"); 
-            sb.push(`//############################################################`);
-            sb.push(`// PROYECTO: ${project.name}`);
-            sb.push(`//############################################################\n`);
-        }
-    }
-    
-    const groupMap = new Map<string, ProcessedFile[]>();
-    selectedFiles.forEach(file => {
-        let content = file.content;
-        
-        if (commentOption === 'removePastAppComments') {
-            content = removePastUnificationComments(content);
-        } else if (commentOption === 'removeAllComments') {
-            content = removeAllCommentsFromCode(content, file.fileType);
+        if (projectIndex > 0) {
+            contentBuilder += '\n\n';
         }
 
-        const updatedFile = { ...file, content: content };
-        const list = groupMap.get(file.packageName) || [];
-        list.push(updatedFile);
-        groupMap.set(file.packageName, list);
-    });
+        if (isMultiProjectUnification || projects.length > 1) {
+            contentBuilder += `//############################################################\n`;
+            contentBuilder += `// PROYECTO: ${project.name}\n`;
+            contentBuilder += `//############################################################\n\n`;
+        }
 
-    const sortedGroupNames = Array.from(groupMap.keys()).sort((a,b) => {
-        if (a === DEFAULT_PACKAGE_NAME_LOGIC) return -1;
-        if (b === DEFAULT_PACKAGE_NAME_LOGIC) return 1;
-        if (a === OTHER_FILES_PACKAGE_NAME_LOGIC && b !== DEFAULT_PACKAGE_NAME_LOGIC) return 1; 
-        if (b === OTHER_FILES_PACKAGE_NAME_LOGIC && a !== DEFAULT_PACKAGE_NAME_LOGIC) return -1;
-        return a.localeCompare(b);
-    });
+        const groupMap = new Map<string, ProcessedFile[]>();
+        selectedFiles.forEach(file => {
+            const list = groupMap.get(file.packageName) || [];
+            list.push(file);
+            groupMap.set(file.packageName, list);
+        });
 
-    for (const groupName of sortedGroupNames) {
-        const filesInGroup = groupMap.get(groupName)!.sort((a,b) => a.name.localeCompare(b.name));
-        
-        if (commentOption !== 'noAppComments' && commentOption !== 'removeAllComments') {
+        const sortedGroupNames = Array.from(groupMap.keys()).sort((a, b) => {
+            if (a === DEFAULT_PACKAGE_NAME_LOGIC) return -1;
+            if (b === DEFAULT_PACKAGE_NAME_LOGIC) return 1;
+            if (a === OTHER_FILES_PACKAGE_NAME_LOGIC && b !== DEFAULT_PACKAGE_NAME_LOGIC) return 1;
+            if (b === OTHER_FILES_PACKAGE_NAME_LOGIC && a !== DEFAULT_PACKAGE_NAME_LOGIC) return -1;
+            return a.localeCompare(b);
+        });
+
+        sortedGroupNames.forEach((groupName) => {
+            const filesInGroup = groupMap.get(groupName)!.sort((a, b) => a.name.localeCompare(b.name));
+
             let groupTitle = "Grupo";
             if (groupName.includes('.') && !groupName.includes('/')) {
                 groupTitle = "Paquete";
             } else if (groupName.includes('/')) {
                 groupTitle = "Directorio";
             }
+            contentBuilder += `//============================================================\n`;
+            contentBuilder += `// ${groupTitle}: ${groupName}\n`;
+            contentBuilder += `//============================================================\n\n`;
 
-            sb.push(`//============================================================`);
-            sb.push(`// ${groupTitle}: ${groupName}`);
-            sb.push(`//============================================================\n`);
-        }
+            filesInGroup.forEach((file) => {
+                const start = contentBuilder.length;
 
-        for (const file of filesInGroup) {
-            if (commentOption !== 'noAppComments' && commentOption !== 'removeAllComments') {
-                sb.push(`//------------------------------------------------------------`);
-                sb.push(`// Archivo (Tipo: ${file.fileType.toUpperCase()}): ${file.name}`);
-                sb.push(`// Path: ${file.path}`); 
-                sb.push(`//------------------------------------------------------------\n`);
-            }
-            sb.push(file.content.trim());
-            sb.push("\n\n"); 
-        }
-    }
-  }
-  return sb.join('\n').trim();
+                contentBuilder += `//------------------------------------------------------------\n`;
+                contentBuilder += `// Archivo (Tipo: ${file.fileType.toUpperCase()}): ${file.name}\n`;
+                contentBuilder += `// Path: ${file.path}\n`;
+                contentBuilder += `//------------------------------------------------------------\n\n`;
+
+                contentBuilder += file.content + "\n\n";
+
+                const end = contentBuilder.length;
+                fileMap.push({
+                    fileName: file.name,
+                    fileType: file.fileType,
+                    projectName: project.name,
+                    projectIndex,
+                    groupName,
+                    start,
+                    end,
+                });
+            });
+        });
+    });
+
+    return { content: contentBuilder, fileMap };
 }
+
 
 export function downloadTextFile(filename: string, text: string) {
   const element = document.createElement('a');
-  element.setAttribute('href', 'data:text/plain;charset=utf-8,' + encodeURIComponent(text));
+  const url = URL.createObjectURL(new Blob([text], { type: 'text/plain;charset=utf-8' }));
+  element.href = url;
   
   let safeFilename = filename.replace(/[^a-z0-9_.\-]/gi, '_');
   if (!safeFilename.toLowerCase().endsWith(".txt")) {
@@ -444,4 +406,5 @@ export function downloadTextFile(filename: string, text: string) {
   document.body.appendChild(element);
   element.click();
   document.body.removeChild(element);
+  window.setTimeout(() => URL.revokeObjectURL(url), 60_000);
 }

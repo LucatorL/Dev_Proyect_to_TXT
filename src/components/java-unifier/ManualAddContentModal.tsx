@@ -1,7 +1,7 @@
 // components/java-unifier/ManualAddContentModal.tsx
 "use client"
 
-import React, { useState, useEffect } from 'react';
+import React, { useState, useEffect, useCallback } from 'react';
 import {
   Dialog,
   DialogContent,
@@ -13,47 +13,47 @@ import {
 import { Button } from "@/components/ui/button";
 import { Input } from "@/components/ui/input";
 import { Textarea } from "@/components/ui/textarea";
+import { Select, SelectContent, SelectItem, SelectTrigger, SelectValue } from '@/components/ui/select';
 import { Label } from "@/components/ui/label";
-import { Select, SelectContent, SelectItem, SelectTrigger, SelectValue } from "@/components/ui/select";
 import { useToast } from "@/hooks/use-toast";
 import type { ProjectFile } from '@/types/java-unifier';
 import { t, type Language } from '@/lib/translations';
+import { cn } from '@/lib/utils';
+import { FileUp } from 'lucide-react';
+
+const NEW_PROJECT_ID_VALUE = 'new_project';
 
 interface ManualAddContentModalProps {
   isOpen: boolean;
   onClose: () => void;
   onAddContent: (fileName: string, content: string, targetProjectId: string | 'new_project') => void;
+  preferredProjectId?: string;
   existingProjects: ProjectFile[]; 
-  currentProjectNameInSingleView?: string; 
   isMultiProjectMode: boolean;
   currentLanguage: Language;
 }
-
-const NEW_PROJECT_ID_VALUE = 'new_project';
 
 export function ManualAddContentModal({ 
   isOpen, 
   onClose, 
   onAddContent, 
   existingProjects,
-  currentProjectNameInSingleView,
+  preferredProjectId,
   isMultiProjectMode,
   currentLanguage,
 }: ManualAddContentModalProps) {
   const [fileName, setFileName] = useState("");
   const [content, setContent] = useState("");
   const [targetProjectId, setTargetProjectId] = useState<string | 'new_project'>(NEW_PROJECT_ID_VALUE);
+  const [isDragging, setIsDragging] = useState(false);
   const { toast } = useToast();
 
   useEffect(() => {
     if (isOpen) {
-        if (!isMultiProjectMode && existingProjects.length === 1 && existingProjects[0]) {
-             setTargetProjectId(existingProjects[0].id);
-        } else {
-             setTargetProjectId(NEW_PROJECT_ID_VALUE);
-        }
+        setTargetProjectId(previous => existingProjects.some(project => project.id === previous) ? previous
+          : preferredProjectId ?? existingProjects[0]?.id ?? NEW_PROJECT_ID_VALUE);
     }
-  }, [isOpen, existingProjects, isMultiProjectMode]);
+  }, [isOpen, existingProjects, preferredProjectId]);
 
 
   const handleAdd = () => {
@@ -66,7 +66,7 @@ export function ManualAddContentModal({
       return;
     }
     if (!fileName.includes('.')) {
-        toast({ title: t('noExtensionWarning', currentLanguage), description: t('noExtensionWarning', currentLanguage), variant: "default" }); // Title same as description here
+        toast({ title: t('noExtensionWarning', currentLanguage), description: t('noExtensionWarning', currentLanguage), variant: "default" });
     }
 
     onAddContent(fileName, content, targetProjectId);
@@ -78,33 +78,62 @@ export function ManualAddContentModal({
     setFileName("");
     setContent("");
     setTargetProjectId(NEW_PROJECT_ID_VALUE);
+    setIsDragging(false);
     onClose();
   }
 
-  const getSelectOptions = () => {
-    if (!isMultiProjectMode && currentProjectNameInSingleView && existingProjects.length > 0 && existingProjects[0]) {
-      return (
-        <>
-          <SelectItem value={existingProjects[0].id}>
-            {t('addToProject', currentLanguage, { projectName: currentProjectNameInSingleView })}
-          </SelectItem>
-          <SelectItem value={NEW_PROJECT_ID_VALUE}>{t('createNewProject', currentLanguage)}</SelectItem>
-        </>
-      );
-    } else if (isMultiProjectMode && existingProjects.length > 0) {
-      return (
-        <>
-          <SelectItem value={NEW_PROJECT_ID_VALUE}>{t('createNewProject', currentLanguage)}</SelectItem>
-          {existingProjects.map(proj => (
-            <SelectItem key={proj.id} value={proj.id}>
-              {t('addToProject', currentLanguage, { projectName: proj.name })}
-            </SelectItem>
-          ))}
-        </>
-      );
+  const handleDragEnter = useCallback((e: React.DragEvent<HTMLDivElement>) => {
+    e.preventDefault();
+    e.stopPropagation();
+    setIsDragging(true);
+  }, []);
+
+  const handleDragLeave = useCallback((e: React.DragEvent<HTMLDivElement>) => {
+    e.preventDefault();
+    e.stopPropagation();
+    setIsDragging(false);
+  }, []);
+
+  const handleDragOver = useCallback((e: React.DragEvent<HTMLDivElement>) => {
+    e.preventDefault();
+    e.stopPropagation();
+  }, []);
+
+  const handleDrop = useCallback((e: React.DragEvent<HTMLDivElement>) => {
+    e.preventDefault();
+    e.stopPropagation();
+    setIsDragging(false);
+    
+    const files = e.dataTransfer.files;
+    if (files && files.length > 0) {
+      const file = files[0];
+      if (!file) return;
+      
+      if (files.length > 1) {
+        toast({
+            title: t('multipleFilesDraggedTitle', currentLanguage),
+            description: t('multipleFilesDraggedDescription', currentLanguage, { fileName: file.name }),
+            variant: "default"
+        });
+      }
+
+      setFileName(file.name);
+
+      const reader = new FileReader();
+      reader.onload = (loadEvent) => {
+        const fileContent = loadEvent.target?.result as string;
+        setContent(fileContent);
+      };
+      reader.onerror = () => {
+        toast({
+            title: t('error', currentLanguage),
+            description: t('processingErrorToastDescriptionShort', currentLanguage, { fileName: file.name }),
+            variant: "destructive"
+        });
+      };
+      reader.readAsText(file);
     }
-    return <SelectItem value={NEW_PROJECT_ID_VALUE}>{t('createNewProject', currentLanguage)}</SelectItem>;
-  };
+  }, [currentLanguage, toast]);
 
 
   return (
@@ -117,6 +146,16 @@ export function ManualAddContentModal({
           </DialogDescription>
         </DialogHeader>
         <div className="grid gap-4 py-4">
+          <div className="grid grid-cols-4 items-center gap-4">
+            <Label htmlFor="manual-destination" className="text-right">{t('destinationLabel', currentLanguage)}</Label>
+            <Select value={targetProjectId} onValueChange={setTargetProjectId}>
+              <SelectTrigger id="manual-destination" className="col-span-3"><SelectValue /></SelectTrigger>
+              <SelectContent>
+                {existingProjects.map(project => <SelectItem key={project.id} value={project.id}>{t('addToProject', currentLanguage, { projectName: project.name })}</SelectItem>)}
+                <SelectItem value={NEW_PROJECT_ID_VALUE}>{t('createNewProject', currentLanguage)}</SelectItem>
+              </SelectContent>
+            </Select>
+          </div>
           <div className="grid grid-cols-4 items-center gap-4">
             <Label htmlFor="manual-filename" className="text-right">
               {t('fileNameLabel', currentLanguage)}
@@ -133,32 +172,31 @@ export function ManualAddContentModal({
             <Label htmlFor="manual-content" className="text-right pt-2">
               {t('contentLabel', currentLanguage)}
             </Label>
-            <Textarea
-              id="manual-content"
-              value={content}
-              onChange={(e) => setContent(e.target.value)}
-              placeholder={t('contentPlaceholder', currentLanguage)}
-              className="col-span-3 min-h-[200px] font-mono text-xs"
-            />
-          </div>
-          {(isMultiProjectMode || (existingProjects.length > 0 && currentProjectNameInSingleView)) && (
-            <div className="grid grid-cols-4 items-center gap-4">
-                <Label htmlFor="manual-target-project" className="text-right">
-                    {t('destinationLabel', currentLanguage)}
-                </Label>
-                <Select 
-                    value={targetProjectId} 
-                    onValueChange={(value) => setTargetProjectId(value as string | 'new_project')}
-                >
-                    <SelectTrigger className="col-span-3" id="manual-target-project">
-                        <SelectValue placeholder={t('selectDestinationPlaceholder', currentLanguage)} />
-                    </SelectTrigger>
-                    <SelectContent>
-                        {getSelectOptions()}
-                    </SelectContent>
-                </Select>
+            <div
+              className={cn(
+                "col-span-3 relative rounded-md border-2 border-dashed transition-colors",
+                isDragging ? "border-primary bg-primary/10" : "border-input"
+              )}
+              onDragEnter={handleDragEnter}
+              onDragLeave={handleDragLeave}
+              onDragOver={handleDragOver}
+              onDrop={handleDrop}
+            >
+              <Textarea
+                id="manual-content"
+                value={content}
+                onChange={(e) => setContent(e.target.value)}
+                placeholder=""
+                className="min-h-[200px] w-full resize-none border-none bg-transparent p-2 font-mono text-xs focus-visible:outline-none"
+              />
+              {content === '' && !isDragging && (
+                <div className="absolute inset-0 flex flex-col items-center justify-center text-center text-muted-foreground pointer-events-none">
+                  <FileUp className="h-8 w-8 text-muted-foreground/70" />
+                  <span className="mt-2 text-sm font-medium">{t('contentPlaceholder', currentLanguage)}</span>
+                </div>
+              )}
             </div>
-          )}
+          </div>
         </div>
         <DialogFooter>
           <Button variant="outline" onClick={handleClose}>{t('cancel', currentLanguage)}</Button>

@@ -1,6 +1,5 @@
 
 
-export type CommentOption = 'default' | 'noAppComments' | 'removePastAppComments' | 'removeAllComments';
 
 export interface ProcessedFile {
   id: string; // Unique ID for the file
@@ -18,8 +17,9 @@ export interface ProjectFile {
   name: string; // Original file/folder name (e.g., MyProject, project.zip)
   type: 'folder' | 'file'; // Type of the root item (folder or a single .java file)
   files: ProcessedFile[]; // List of found/processed files
-  otherFiles?: FileSystemFileEntry[]; // For files that don't match the current projectType
+  otherFiles?: import('@/lib/file-processor').SourceFileEntry[]; // For files that don't match the current projectType
   timestamp: number; // Timestamp of processing
+  sourceHandle?: FileSystemHandle; // Browser-granted source for re-opening this project later
 }
 
 export interface RecentEntry {
@@ -27,6 +27,7 @@ export interface RecentEntry {
   name: string; // Name of the project/file, can be descriptive for unifications
   timestamp: number; // Timestamp of last access
   type: 'folder' | 'file'; // Simplified type, refers to the root dropped item or 'unification'
+  reopenable?: boolean; // File handles live separately in IndexedDB
 }
 
 export interface PackageGroup {
@@ -38,7 +39,22 @@ export interface ProjectGroup {
   projectName: string;
   projectActualId: string; // Added to uniquely identify project for checkbox changes
   packages: PackageGroup[];
-  otherFiles?: FileSystemFileEntry[];
+  otherFiles?: import('@/lib/file-processor').SourceFileEntry[];
 }
 
 export type UnifiedData = ProjectGroup[];
+
+export interface UnifiedFileMapEntry {
+  fileName: string;
+  fileType: string;
+  projectName: string;
+  projectIndex: number;
+  groupName: string;
+  start: number;
+  end: number;
+}
+
+export interface UnificationResult {
+  content: string;
+  fileMap: UnifiedFileMapEntry[];
+}

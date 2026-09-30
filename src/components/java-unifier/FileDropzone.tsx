@@ -1,161 +1,114 @@
-// components/java-unifier/FileDropzone.tsx
 "use client"
 
-import React, { useCallback, useState, useRef } from 'react';
-import { UploadCloud, FileUp } from 'lucide-react';
+import React, { useRef, useState } from 'react';
+import { UploadCloud, FileUp, FolderOpen } from 'lucide-react';
 import { Button } from '@/components/ui/button';
-import { useToast } from '@/hooks/use-toast';
 import { t, type Language } from '@/lib/translations';
-import { type ProjectType } from '@/lib/file-processor';
-
+import { type DroppedItem, type ProjectType } from '@/lib/file-processor';
 
 interface FileDropzoneProps {
-  onFilesProcessed: (files: FileSystemFileEntry[]) => void;
+  onFilesProcessed: (files: DroppedItem[]) => void | Promise<void>;
   currentLanguage: Language;
   projectType: ProjectType;
 }
 
-export function FileDropzone({ onFilesProcessed, currentLanguage, projectType }: FileDropzoneProps) {
+export function FileDropzone({ onFilesProcessed, currentLanguage }: FileDropzoneProps) {
   const [isDragging, setIsDragging] = useState(false);
-  const fileInputRef = useRef<HTMLInputElement>(null);
-  const { toast } = useToast();
+  const [isProcessing, setIsProcessing] = useState(false);
+  const processingRef = useRef(false);
+  const fileInputRef = useRef<HTMLInputElement | null>(null);
+  const folderInputRef = useRef<HTMLInputElement | null>(null);
 
-  const handleDragEnter = useCallback((e: React.DragEvent<HTMLDivElement>) => {
-    e.preventDefault();
-    e.stopPropagation();
-    setIsDragging(true);
-  }, []);
-
-  const handleDragLeave = useCallback((e: React.DragEvent<HTMLDivElement>) => {
-    e.preventDefault();
-    e.stopPropagation();
-    setIsDragging(false);
-  }, []);
-
-  const handleDragOver = useCallback((e: React.DragEvent<HTMLDivElement>) => {
-    e.preventDefault();
-    e.stopPropagation();
-  }, []);
-
-  const handleDrop = useCallback(async (e: React.DragEvent<HTMLDivElement>) => {
-    e.preventDefault();
-    e.stopPropagation();
-    setIsDragging(false);
-
-    const items = e.dataTransfer.items;
-    if (items && items.length > 0) {
-      const entries: FileSystemFileEntry[] = [];
-      for (let i = 0; i < items.length; i++) {
-        const entry = items[i].webkitGetAsEntry();
-        if (entry) {
-          if (entry.name.toLowerCase().endsWith('.rar')) {
-             toast({
-                title: t('compressedFileNotSupported', currentLanguage),
-                description: t('compressedRarFileDescription', currentLanguage, { fileName: entry.name }),
-                variant: "default",
-            });
-          } else if (entry.isDirectory || entry.isFile) {
-             entries.push(entry);
-          } else { 
-             toast({
-                title: t('unsupportedItem', currentLanguage),
-                description: t('unsupportedItemDescription', currentLanguage, { fileName: entry.name}),
-                variant: "default",
-            });
-          }
-        }
-      }
-      if (entries.length > 0) {
-        onFilesProcessed(entries);
-      }
-    }
-  }, [onFilesProcessed, toast, currentLanguage]);
-  
-  const createFakeFileEntry = (file: File): FileSystemFileEntry => {
-    return {
-        isFile: true,
-        isDirectory: false,
-        name: file.name,
-        fullPath: (file as any).webkitRelativePath || file.name,
-        file: (callback: (f: File) => void) => callback(file),
-        createReader: () => ({} as FileSystemDirectoryReader),
-        getMetadata: () => {}, 
-        moveTo: () => {}, 
-        copyTo: () => {}, 
-        remove: () => {}, 
-        getParent: () => {}, 
-        filesystem: {} as FileSystem,
-    } as FileSystemFileEntry;
+  const process = async (items: DroppedItem[]) => {
+    if (processingRef.current || !items.length) return;
+    processingRef.current = true;
+    setIsProcessing(true);
+    try { await onFilesProcessed(items); }
+    finally { processingRef.current = false; setIsProcessing(false); }
   };
-
-
-  const handleManualSelect = useCallback((e: React.ChangeEvent<HTMLInputElement>) => {
-    const files = e.target.files;
-    if (!files || files.length === 0) return;
-
-    const fileList = Array.from(files);
-    const entriesForProcessing: FileSystemFileEntry[] = [];
-
-    for (const file of fileList) {
-        const fakeEntry = createFakeFileEntry(file);
-        if (file.name.toLowerCase().endsWith('.rar')) {
-            toast({
-                title: t('compressedFileNotSupported', currentLanguage),
-                description: t('compressedRarFileDescription', currentLanguage, { fileName: file.name }),
-                variant: 'default',
-            });
-        } else {
-            entriesForProcessing.push(fakeEntry);
-        }
-    }
-
-    if (entriesForProcessing.length > 0) {
-        onFilesProcessed(entriesForProcessing);
-    }
-
-    if (fileInputRef.current) {
-        fileInputRef.current.value = "";
-    }
-  }, [onFilesProcessed, toast, currentLanguage]);
-  
-  const openFileDialog = () => {
-    if (fileInputRef.current) {
-      fileInputRef.current.click();
-    }
+  const handleSelect = async (event: React.ChangeEvent<HTMLInputElement>) => {
+    const input = event.currentTarget;
+    const files = Array.from(input.files ?? []);
+    input.value = '';
+    await process(files);
   };
-  
-  const directoryProps = { webkitdirectory: "true", mozdirectory: "true", directory: "true" };
+  const openFiles = async () => {
+    const picker = (window as Window & {
+      showOpenFilePicker?: (options: { multiple: boolean }) => Promise<FileSystemFileHandle[]>;
+    }).showOpenFilePicker;
+    if (!picker) { fileInputRef.current?.click(); return; }
+    let handles: FileSystemFileHandle[];
+    try {
+      handles = await picker.call(window, { multiple: true });
+    } catch (error) {
+      if (!(error instanceof DOMException && error.name === 'AbortError')) fileInputRef.current?.click();
+      return;
+    }
+    await process(handles.map(handle => ({ kind: 'local-handle', handle })));
+  };
+  const openFolder = async () => {
+    const picker = (window as Window & {
+      showDirectoryPicker?: () => Promise<FileSystemDirectoryHandle>;
+    }).showDirectoryPicker;
+    if (!picker) { folderInputRef.current?.click(); return; }
+    let handle: FileSystemDirectoryHandle;
+    try {
+      handle = await picker.call(window);
+    } catch (error) {
+      if (!(error instanceof DOMException && error.name === 'AbortError')) folderInputRef.current?.click();
+      return;
+    }
+    await process([{ kind: 'local-handle', handle }]);
+  };
+  const handleDrop = async (event: React.DragEvent<HTMLDivElement>) => {
+    event.preventDefault();
+    setIsDragging(false);
+    const items = Array.from(event.dataTransfer.items ?? []).filter(item => item.kind === 'file');
+    const entries = items.map(item => item.webkitGetAsEntry?.() ?? item.getAsFile())
+      .filter((entry): entry is File | FileSystemEntry => entry !== null);
+    const files = Array.from(event.dataTransfer.files);
+    const handleRequests = items.map(item => (item as DataTransferItem & {
+      getAsFileSystemHandle?: () => Promise<FileSystemFileHandle | FileSystemDirectoryHandle | null>;
+    }).getAsFileSystemHandle?.());
+    if (items.length && handleRequests.every(Boolean)) {
+      const handles = await Promise.allSettled(handleRequests as Promise<FileSystemFileHandle | FileSystemDirectoryHandle | null>[]);
+      if (handles.every(result => result.status === 'fulfilled' && result.value)) {
+        await process(handles.map(result => ({ kind: 'local-handle', handle: (result as PromiseFulfilledResult<FileSystemFileHandle | FileSystemDirectoryHandle>).value! })));
+        return;
+      }
+    }
+    await process(entries.length ? entries : files);
+  };
 
   return (
-    <div className="p-6 space-y-4">
+    <div className="p-6 space-y-4" aria-busy={isProcessing}>
       <div
-        className={`flex flex-col items-center justify-center p-8 border-2 border-dashed rounded-lg cursor-pointer transition-colors
-                    ${isDragging ? 'border-primary bg-primary/10' : 'border-border hover:border-accent'}`}
-        onDragEnter={handleDragEnter}
-        onDragLeave={handleDragLeave}
-        onDragOver={handleDragOver}
+        className={`flex flex-col items-center justify-center p-8 border-2 border-dashed rounded-lg cursor-pointer transition-colors ${isDragging ? 'border-primary bg-primary/10' : 'border-border hover:border-accent'}`}
+        onDragEnter={e => { e.preventDefault(); setIsDragging(true); }}
+        onDragLeave={e => { if (!e.currentTarget.contains(e.relatedTarget as Node | null)) setIsDragging(false); }}
+        onDragOver={e => e.preventDefault()}
         onDrop={handleDrop}
-        onClick={openFileDialog}
+        onClick={() => !isProcessing && void openFiles()}
+        role="button" tabIndex={isProcessing ? -1 : 0} aria-disabled={isProcessing}
+        onKeyDown={e => { if ((e.key === 'Enter' || e.key === ' ') && !isProcessing) { e.preventDefault(); void openFiles(); } }}
       >
-        <UploadCloud className={`w-16 h-16 mb-4 ${isDragging ? 'text-primary' : 'text-muted-foreground'}`} />
-        <p className={`text-lg font-semibold ${isDragging ? 'text-primary' : 'text-foreground'}`}>
-          {t('dropzoneHint', currentLanguage)}
-        </p>
-        <p className="text-sm text-muted-foreground">
-          {t('dropzoneSubHint', currentLanguage)}
-        </p>
-        <input
-          type="file"
-          ref={fileInputRef}
-          onChange={handleManualSelect}
-          className="hidden"
-          multiple
-          {...directoryProps} 
-        />
+        <UploadCloud className="w-16 h-16 mb-4 text-muted-foreground" />
+        <p className="text-lg font-semibold">{isProcessing ? t('importing', currentLanguage) : t('dropzoneHint', currentLanguage)}</p>
+        <p className="text-sm text-muted-foreground">{t('dropzoneSubHint', currentLanguage)}</p>
       </div>
-      <Button onClick={openFileDialog} className="w-full" variant="outline">
-        <FileUp className="mr-2 h-4 w-4" /> {t('selectFoldersOrFiles', currentLanguage)}
-      </Button>
+      <input type="file" aria-label={t('selectFiles', currentLanguage)} ref={fileInputRef} onChange={handleSelect} className="hidden" multiple disabled={isProcessing} />
+      <input type="file" aria-label={t('selectFolders', currentLanguage)} ref={node => {
+        folderInputRef.current = node;
+        node?.setAttribute('webkitdirectory', '');
+      }} onChange={handleSelect} className="hidden" multiple disabled={isProcessing} />
+      <div className="flex flex-col sm:flex-row gap-2">
+        <Button onClick={() => void openFiles()} className="flex-1" variant="outline" disabled={isProcessing}>
+          <FileUp className="mr-2 h-4 w-4" />{t('selectFiles', currentLanguage)}
+        </Button>
+        <Button onClick={() => void openFolder()} className="flex-1" variant="outline" disabled={isProcessing}>
+          <FolderOpen className="mr-2 h-4 w-4" />{t('selectFolders', currentLanguage)}
+        </Button>
+      </div>
     </div>
   );
 }

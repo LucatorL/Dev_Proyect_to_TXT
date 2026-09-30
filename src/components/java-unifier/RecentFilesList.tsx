@@ -49,7 +49,7 @@ export function RecentFilesList({ recents, onSelectRecent, onRemoveRecent, curre
         <ScrollArea className="h-[150px]">
           <ul className="space-y-2">
             {recents.map((recent) => (
-              <li key={recent.id} className="flex items-center justify-between p-2 rounded-md hover:bg-secondary group">
+              <li key={recent.id} data-dotscroll-section data-dotscroll-label={recent.name} className="flex items-center justify-between p-2 rounded-md hover:bg-secondary group">
                 <Button
                   variant="link"
                   className="p-0 h-auto text-sm text-left flex-grow text-foreground hover:text-primary truncate flex items-center"
@@ -63,28 +63,37 @@ export function RecentFilesList({ recents, onSelectRecent, onRemoveRecent, curre
                   {getIcon(recent.type)}
                   <span className="truncate">{recent.name}</span>
                 </Button>
+                {!recent.reopenable && <span className="text-xs text-muted-foreground shrink-0 px-1">{t('historyLink', currentLanguage)}</span>}
                 
-                <AlertDialog>
-                  <AlertDialogTrigger asChild>
-                     <Button variant="ghost" size="icon" className="opacity-0 group-hover:opacity-100 w-7 h-7 shrink-0" title={t('deleteFromRecents', currentLanguage)}>
-                        <X className="w-4 h-4 text-muted-foreground hover:text-destructive" />
-                      </Button>
-                  </AlertDialogTrigger>
-                  <AlertDialogContent>
-                    <AlertDialogHeader>
-                      <AlertDialogTitle>{t('confirmDeletion', currentLanguage)}</AlertDialogTitle>
-                      <AlertDialogDescription>
-                        {t('confirmDeletionDescription', currentLanguage, { fileName: recent.name })}
-                      </AlertDialogDescription>
-                    </AlertDialogHeader>
-                    <AlertDialogFooter>
-                      <AlertDialogCancel>{t('cancel', currentLanguage)}</AlertDialogCancel>
-                      <AlertDialogAction onClick={() => onRemoveRecent(recent.id)} className="bg-destructive hover:bg-destructive/90 text-destructive-foreground">
-                        {t('delete', currentLanguage)}
-                      </AlertDialogAction>
-                    </AlertDialogFooter>
-                  </AlertDialogContent>
-                </AlertDialog>
+                <div className="flex items-center space-x-2">
+                  <span className="text-xs text-muted-foreground shrink-0">
+                    {new Date(recent.timestamp).toLocaleString(currentLanguage, {
+                      year: 'numeric', month: 'numeric', day: 'numeric',
+                      hour: '2-digit', minute: '2-digit'
+                    })}
+                  </span>
+                  <AlertDialog>
+                    <AlertDialogTrigger asChild>
+                       <Button variant="ghost" size="icon" className="opacity-0 group-hover:opacity-100 w-7 h-7 shrink-0" title={t('deleteFromRecents', currentLanguage)}>
+                          <X className="w-4 h-4 text-muted-foreground hover:text-destructive" />
+                        </Button>
+                    </AlertDialogTrigger>
+                    <AlertDialogContent>
+                      <AlertDialogHeader>
+                        <AlertDialogTitle>{t('confirmDeletion', currentLanguage)}</AlertDialogTitle>
+                        <AlertDialogDescription>
+                          {t('confirmDeletionDescription', currentLanguage, { fileName: recent.name })}
+                        </AlertDialogDescription>
+                      </AlertDialogHeader>
+                      <AlertDialogFooter>
+                        <AlertDialogCancel>{t('cancel', currentLanguage)}</AlertDialogCancel>
+                        <AlertDialogAction onClick={() => onRemoveRecent(recent.id)} className="bg-destructive hover:bg-destructive/90 text-destructive-foreground">
+                          {t('delete', currentLanguage)}
+                        </AlertDialogAction>
+                      </AlertDialogFooter>
+                    </AlertDialogContent>
+                  </AlertDialog>
+                </div>
 
               </li>
             ))}
@@ -94,5 +103,3 @@ export function RecentFilesList({ recents, onSelectRecent, onRemoveRecent, curre
     </Card>
   );
 }
-
-    

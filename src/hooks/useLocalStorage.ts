@@ -1,52 +1,28 @@
-
-import { useState, useEffect } from 'react';
+import { useState, useEffect, useRef, useCallback } from 'react';
 
 function useLocalStorage<T>(key: string, initialValue: T): [T, (value: T | ((val: T) => T)) => void] {
-  // Initialize state with initialValue. This ensures server and client match on first render.
   const [storedValue, setStoredValue] = useState<T>(initialValue);
-
-  // useEffect to load the value from localStorage on the client side after initial render.
+  const valueRef = useRef(storedValue);
   useEffect(() => {
-    // Check if window is defined (i.e., we are on the client side).
-    if (typeof window === 'undefined') {
-      return;
-    }
     try {
       const item = window.localStorage.getItem(key);
-      // If item exists in localStorage, parse it and update state.
-      // Otherwise, storedValue remains initialValue.
-      if (item) {
-        setStoredValue(JSON.parse(item));
+      if (item !== null) {
+        const value = JSON.parse(item) as T;
+        valueRef.current = value;
+        setStoredValue(value);
       }
-    } catch (error) {
-      console.warn(`Error reading localStorage key "${key}":`, error);
-      // In case of error, storedValue remains initialValue.
-    }
-  }, [key]); // Dependency array ensures this effect runs if the key changes.
+    } catch (error) { console.warn(`Could not read local preference ${key}`, error); }
+  }, [key]);
 
-  // Wrapped version of useState's setter function that persists the new value to localStorage.
-  const setValue = (value: T | ((val: T) => T)) => {
-    if (typeof window === 'undefined') {
-      console.warn(
-        `Tried setting localStorage key “${key}” even though environment is not a client`
-      );
-      return; // Don't try to set localStorage on the server
-    }
-    try {
-      // Allow value to be a function so we have the same API as useState
-      const valueToStore = value instanceof Function ? value(storedValue) : value;
-      // Save state
-      setStoredValue(valueToStore);
-      // Save to local storage
-      window.localStorage.setItem(key, JSON.stringify(valueToStore));
-    } catch (error) {
-      console.warn(`Error setting localStorage key "${key}":`, error);
-    }
-  };
-
+  const setValue = useCallback((value: T | ((previous: T) => T)) => {
+    // Update synchronously so successive functional updates use the latest value,
+    // including when React batches several imported projects into one render.
+    const next = value instanceof Function ? value(valueRef.current) : value;
+    valueRef.current = next;
+    setStoredValue(next);
+    try { window.localStorage.setItem(key, JSON.stringify(next)); }
+    catch (error) { console.warn(`Could not save local preference ${key}`, error); }
+  }, [key]);
   return [storedValue, setValue];
 }
-
 export default useLocalStorage;
-
-    

@@ -24,6 +24,7 @@ interface HeaderControlsProps {
   onLanguageChange: (lang: Language) => void;
   projectType: ProjectType;
   onProjectTypeChange: (type: ProjectType) => void;
+  boardControl?: React.ReactNode;
 }
 
 const ProjectTypeInfoTooltip = ({ projectType, currentLanguage }: { projectType: ProjectType, currentLanguage: Language }) => {
@@ -63,10 +64,11 @@ export function HeaderControls({
   currentLanguage,
   onLanguageChange,
   projectType,
-  onProjectTypeChange
+  onProjectTypeChange,
+  boardControl,
 }: HeaderControlsProps) {
   return (
-    <header className="flex items-center justify-between p-4 border-b gap-4 flex-wrap">
+    <header data-dotscroll-page data-dotscroll-label={t('projectType', currentLanguage)} className="page-scroll-safe flex items-center justify-between p-4 border-b gap-4 flex-wrap">
        <div className="flex items-center space-x-4 flex-wrap gap-y-2">
          <div className="flex items-center space-x-2">
             <Label htmlFor="project-type" className="text-sm font-medium whitespace-nowrap">
@@ -163,6 +165,7 @@ export function HeaderControls({
         </div>
       </div>
       <div className="flex items-center space-x-3">
+        {boardControl}
         <Select value={currentLanguage} onValueChange={(value: Language) => onLanguageChange(value)}>
           <SelectTrigger className="w-[120px] h-9 text-sm">
              <span>

@@ -1,68 +1,100 @@
 # Dev_Proyect_to_TXT
 
-<div align="center">
+**v0.2.20** — Combine project files into one organized TXT document for AI context, documentation or sharing.
 
-# Dev_Proyect_to_TXT
+This browser application expands the original [JavaSourceToTxt](https://github.com/LucatorL/JavaSourceToTxt) by LucatorL.
 
-| 🖥️ **Desktop Application** | 🌐 **Web Version** |
-| :---: | :---: |
-| ![Status](https://img.shields.io/badge/DESKTOP-EN_DESARROLLO-orange?style=for-the-badge) <br> <sub>A standalone desktop version is planned.</sub> | [![Open Online](https://img.shields.io/badge/OPEN-ONLINE-2ea44f?style=for-the-badge&logo=vercel&logoColor=white)](https://dev-proyect-to-txt.vercel.app) <br> <sub>Use it directly from your browser.</sub> |
+[Try the current preview](https://dev-proyect-txt-v025-lucas.lucatorl.chatgpt.site) · [Changelog](CHANGELOG.md) · [Report an issue](https://github.com/LucatorL/Dev_Proyect_to_TXT/issues)
 
-</div>
+## Features
 
-<br>
+- Import files, folders, ZIP archives and RAR archives.
+- Java, Web and Total presets with editable file selection.
+- Search filenames, paths, folders/packages and project names.
+- Select a folder/package and its nested contents at once.
+- Combine multiple projects or process them separately.
+- Add text or files manually to an existing project or a new project.
+- Unified preview with clear file separators, approximate token count and text search.
+- Automatic column sizing, a draggable divider and scrolling labels when text does not fit.
+- [DotScroll](https://github.com/LucatorL/dotscroll) navigation: folders/packages in the file list and individual files in the preview.
+- Recent history with local file-handle reopening where the browser supports it.
+- Shared leaderboard of unified files, with editable aliases.
+- Spanish and English, light/dark themes and persistent preferences.
 
-**Dev_Proyect_to_TXT** is a modern, web-based tool designed to consolidate project files (Java, Web, Python, and more) and other text-based sources (like `.xml`, `.txt`, `.sql`) into a single, organized document. It's built for developers who need to package their codebase into a single file for AI model context, documentation, or simplified sharing.
+The app preserves source comments. Comment removal is no longer available.
 
-This project is an evolution and web adaptation of the original [JavaSourceToTxt application by @LucatorL](https://github.com/LucatorL/JavaSourceToTxt), expanding its core functionality to support a wider range of development projects directly in the browser.
+## Using the app
 
-## ✨ Features
+1. Choose **Java**, **Web** or **Total**, then import your projects.
+2. Select files individually or by folder/package. Use the search button to find a filename or path.
+3. Review the output. The divider between the file list and preview can be dragged.
+4. Choose **Copy All** or **Accept and Save** to export the selected content.
 
--   **Project Type Presets:** Choose between `Java`, `Web`, or `Total` presets to automatically filter and prioritize relevant file types.
--   **Intelligent Drag & Drop:** Easily import entire project folders or individual files. The tool smartly categorizes files based on the selected project type.
--   **Selective Unification Modal:** An intuitive interface to select exactly which files to include in the final output.
-    -   Primary files for the selected project type (e.g., `.java` for Java, `.js`/`.ts` for Web) are selected by default.
-    -   Files not matching the preset are neatly organized, allowing you to preview and include them with a single click.
--   **Multi-Project Mode:** Toggle between unifying all dropped projects at once or processing them one by one.
--   **Advanced Comment Control:**
-    -   Choose to remove all comments (code and app-generated headers).
-    -   Keep original code comments but exclude the app's identification headers.
-    -   Clean up headers from previous unifications to prevent clutter.
--   **Manual Content Addition:** Add custom code snippets or text files directly within the selection modal, either to an existing project or as a new one.
--   **Live Preview & Token Estimation:** See a real-time preview of the unified content as you select files, along with an approximate token count to optimize for AI model context windows.
--   **Recent History:** Quickly access information about recently processed projects.
--   **Internationalization:** Full support for English and Spanish.
--   **Dark/Light Theme:** Automatically adapts to your system preference.
+Files outside the selected preset can be added explicitly. The import report identifies files skipped because their extension is unsupported, they exceed a limit, or they could not be read.
 
-## 🚀 How to Use
+## Local development
 
-1.  **Visit the application:** [**dev-proyect-to-txt.vercel.app**](https://dev-proyect-to-txt.vercel.app)
-2.  **Select Project Type:** In the header, choose `Java`, `Web`, or `Total`. This adjusts which files are recognized and selected by default.
-3.  **Drag & Drop Files:** Drag your project folder(s), `.zip` archives, or individual files onto the main dropzone.
-4.  **Manage Files for Unification:**
-    * A modal will appear listing all processed files, grouped by project and directory/package.
-    * Use the "Select All" / "Deselect All" buttons or individual checkboxes to refine your selection.
-    * Files not standard for the project type will appear in a separate, collapsible section, ready to be previewed and added.
-    * Toggle **"Unify Multiple Projects"** to process all projects together or one at a time.
-    * Use the **"Comment Handling"** dropdown to control how comments are treated in the final output.
-5.  **Preview Content:** The right panel shows a live preview of the final text file. You can disable this for better performance with large projects.
-6.  **Unify and Download:** Click **"Accept and Save"**. A `.txt` file containing the unified content will be downloaded instantly.
+Requirements: Node.js 20 or newer and npm.
 
-## 🛠️ Tech Stack
+```bash
+git clone https://github.com/LucatorL/Dev_Proyect_to_TXT.git
+cd Dev_Proyect_to_TXT
+npm ci
+npm run dev
+```
 
--   **Framework:** [Next.js](https://nextjs.org/) (App Router)
--   **Language:** [TypeScript](https://www.typescriptlang.org/)
--   **UI:** [React](https://reactjs.org/) with [ShadCN UI](https://ui.shadcn.com/) components
--   **Styling:** [Tailwind CSS](https://tailwindcss.com/)
--   **Icons:** [Lucide React](https://lucide.dev/)
+Open `http://localhost:3000`. The unifier works locally without API keys. The shared leaderboard needs the separate Worker and database described below; `next dev` alone does not serve its API.
 
-## 🤝 Contributing
+```bash
+npm run typecheck
+npm run build
+```
 
-Contributions are highly welcome! Feel free to fork the [repository](https://github.com/LucatorL/Dev_Proyect_to_TXT), make your changes, and open a Pull Request. You can also [open an issue](https://github.com/LucatorL/Dev_Proyect_to_TXT/issues) for bugs, feature requests, or suggestions.
+The build creates a static Next.js export in `out/` and a Worker with embedded assets in `dist/server/index.js`. The project uses `output: 'export'`; `next start` is not the production entrypoint.
 
-## 📜 License
+## Project structure
 
-This project is open-source, licensed under the MIT License.
+| Path | Purpose |
+| --- | --- |
+| `src/app/` | Main application and styles |
+| `src/components/java-unifier/` | Import, selection, preview, history and leaderboard UI |
+| `src/lib/` | File processing, browser storage, translations and DotScroll adaptation |
+| `src/workers/` | Preview search and RAR extraction workers |
+| `public/unrar.wasm` | Browser RAR extraction binary |
+| `worker/index.js` | Shared leaderboard API and production asset serving |
+| `db/`, `drizzle/` | Leaderboard schema and migration history |
+| `scripts/` | Development and build helpers |
+| `hosting/` | Existing separate hosting project; not required for the main app |
 
----
-_This project is a web adaptation and expansion of the original [JavaSourceToTxt application by @LucatorL](https://github.com/LucatorL/JavaSourceToTxt)._
+The leaderboard backend expects a Cloudflare D1-compatible binding named `DB`. A static host can serve the unifier, but the leaderboard requires `/api/leaderboard`, `/api/profile` and `/api/unification` on the same origin. Hosting configuration is separate from this source release.
+
+Migration `0001_reset_leaderboard.sql` records a deliberate historical reset and deletes leaderboard rows. Review the migration history before applying it to an existing database.
+
+## Current limits and compatibility
+
+- Imports accept up to **250 supported files per import** and **5 MiB per file**. These limits are defined in `src/lib/file-processor.ts` and `src/lib/file-types.ts`.
+- RAR archives with passwords or multiple volumes are reported as unsupported. A corrupt archive is reported as an import error.
+- Reopening history uses file handles stored on the same browser/device. It requires browser support and permission; a saved pathname does not grant access to your computer.
+- DotScroll retains the previous implementation after a rollback. Navigation with very large lists still needs further refinement.
+- Leaderboard aliases are shared public names, not authenticated accounts. Identical names combine their scores; the leaderboard is intended for casual use.
+- A fresh local/static installation does not have a configured shared leaderboard database.
+
+## Data handling
+
+Imported code, extraction and TXT generation run in the browser. The leaderboard receives the selected file count and a profile alias, which can initially be suggested from the project's `package.json` author. It does not receive the imported source text.
+
+Preferences and recent-history metadata stay in browser storage. File handles stay in IndexedDB on the same device.
+
+## Credits and license
+
+- Original desktop application and this project: [LucatorL](https://github.com/LucatorL).
+- DotScroll: [LucatorL/dotscroll](https://github.com/LucatorL/dotscroll), adapted here for scrollable panels.
+- ZIP extraction: [JSZip](https://github.com/Stuk/jszip).
+- RAR extraction: [node-unrar-js](https://github.com/YuJianrong/node-unrar.js) and the upstream UnRAR engine.
+- Next.js, React, TypeScript, Tailwind CSS, Radix/shadcn UI and Lucide.
+
+Project code is under the [MIT license](LICENSE). Third-party components retain their own licenses; see [Third-party notices](THIRD_PARTY_NOTICES.md).
+
+## Contributing
+
+Open an [issue](https://github.com/LucatorL/Dev_Proyect_to_TXT/issues) or a pull request. Include the browser, project type and steps to reproduce any problem. Check `npm run typecheck` and `npm run build` before submitting a change.
