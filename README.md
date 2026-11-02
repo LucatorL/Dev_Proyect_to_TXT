@@ -34,7 +34,7 @@ Files outside the selected preset can be added explicitly. The import report ide
 
 ## Local development
 
-Requirements: Node.js 20 or newer and npm.
+Requirements: Node.js 22 or newer and npm.
 
 ```bash
 git clone https://github.com/LucatorL/Dev_Proyect_to_TXT.git
@@ -66,7 +66,7 @@ The build creates a static Next.js export in `out/` and a Worker with embedded a
 | `scripts/` | Development and build helpers |
 | `hosting/` | Existing separate hosting project; not required for the main app |
 
-The leaderboard backend expects a Cloudflare D1-compatible binding named `DB`. A static host can serve the unifier, but the leaderboard requires `/api/leaderboard`, `/api/profile` and `/api/unification` on the same origin. Hosting configuration is separate from this source release.
+The leaderboard backend expects a Cloudflare D1-compatible binding named `DB`. A static host can serve the unifier, but the leaderboard requires `/api/leaderboard`, `/api/profile` and `/api/unification` on the same origin. To host the complete app in your own Cloudflare account with automatic GitHub deployments, follow [Cloudflare deployment](docs/cloudflare.md).
 
 Migration `0001_reset_leaderboard.sql` records a deliberate historical reset and deletes leaderboard rows. Review the migration history before applying it to an existing database.
 

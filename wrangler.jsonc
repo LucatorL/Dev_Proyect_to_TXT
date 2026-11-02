@@ -1,0 +1,19 @@
+{
+  "$schema": "./node_modules/wrangler/config-schema.json",
+  "name": "dev-proyect-to-txt",
+  "main": "worker/index.js",
+  "compatibility_date": "2026-11-02",
+  "assets": {
+    "directory": "./out",
+    "binding": "ASSETS",
+    "not_found_handling": "404-page",
+    "run_worker_first": ["/api/*"]
+  },
+  "d1_databases": [
+    {
+      "binding": "DB",
+      "database_name": "dev-proyect-to-txt-leaderboard",
+      "migrations_dir": "drizzle"
+    }
+  ]
+}
