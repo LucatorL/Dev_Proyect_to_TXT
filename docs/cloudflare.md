@@ -2,6 +2,8 @@
 
 The main app can run on Cloudflare Workers with static assets and D1. This deployment uses the code in this repository and your own Cloudflare database; it does not depend on the ChatGPT preview host.
 
+The live application is available at **[unificador.lucassanchez.net](https://unificador.lucassanchez.net)**.
+
 ## Connect the repository
 
 1. In Cloudflare, open **Workers & Pages → Create application → Connect GitHub**.
@@ -28,7 +30,7 @@ This creates a separate database from any previous host. Existing scores would n
 
 ## Add the domain
 
-After the build succeeds, open the Worker's **Settings → Domains & Routes → Add → Custom Domain** and enter `unificador.lucassanchez.net`. The domain must be in your Cloudflare account. Cloudflare configures the DNS and HTTPS for that Worker.
+After the build succeeds, open the Worker's **Domains → Add Domain**. Select `lucassanchez.net`, enter `unificador` as the subdomain and choose **Production**. The domain must be in your Cloudflare account. Cloudflare configures the DNS and HTTPS for that Worker.
 
 Configure the custom domain in the dashboard. Leave it out of the repository so contributors can deploy their own copies without taking over this hostname. Remove any conflicting DNS record for this exact subdomain before adding it. Keep unrelated DNS records as they are.
 

@@ -4,7 +4,9 @@
 
 This browser application expands the original [JavaSourceToTxt](https://github.com/LucatorL/JavaSourceToTxt) by LucatorL.
 
-[Try the current preview](https://dev-proyect-txt-v025-lucas.lucatorl.chatgpt.site) · [Changelog](CHANGELOG.md) · [Report an issue](https://github.com/LucatorL/Dev_Proyect_to_TXT/issues)
+[Open the app](https://unificador.lucassanchez.net) · [Changelog](CHANGELOG.md) · [Report an issue](https://github.com/LucatorL/Dev_Proyect_to_TXT/issues)
+
+The live app runs in Cloudflare. Successful pushes to `main` are built and deployed automatically from this repository.
 
 ## Features
 

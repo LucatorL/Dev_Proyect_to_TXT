@@ -1,25 +1,10 @@
-# Welcome to Next.js
+# Legacy hosting starter
 
-This is the most minimal starter for your Next.js project.
+This directory contains a separate Next.js starter retained from an earlier setup.
+The main application and its current deployment configuration are in the repository root.
 
-## Deploy your own
+- **Live application:** [unificador.lucassanchez.net](https://unificador.lucassanchez.net)
+- **Project documentation:** [README](../README.md)
+- **Deploy from GitHub to Cloudflare:** [Deployment guide](../docs/cloudflare.md)
 
-[![Deploy with Vercel](https://vercel.com/button)](https://vercel.com/new/clone?repository-url=https://github.com/vercel/next.js/tree/canary/examples/hello-world&project-name=hello-world&repository-name=hello-world)
-
-## How to use
-
-Execute [`create-next-app`](https://github.com/vercel/next.js/tree/canary/packages/create-next-app) with [npm](https://docs.npmjs.com/cli/init), [Yarn](https://yarnpkg.com/lang/en/docs/cli/create/), or [pnpm](https://pnpm.io) to bootstrap the example:
-
-```bash
-npx create-next-app --example hello-world hello-world-app
-```
-
-```bash
-yarn create next-app --example hello-world hello-world-app
-```
-
-```bash
-pnpm create next-app --example hello-world hello-world-app
-```
-
-Deploy it to the cloud with [Vercel](https://vercel.com/new?utm_source=github&utm_medium=readme&utm_campaign=next-example) ([Documentation](https://nextjs.org/docs/deployment)).
+For the main application, run commands from the repository root and follow the Cloudflare deployment guide.
