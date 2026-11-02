@@ -184,11 +184,13 @@ export const translations = {
     versionNewsTitle: "Version {version} News", 
 
     // Footer (page.tsx)
-    footerAdaptedFrom: "Dev_Proyect_to_TXT - Adapted from the",
+    footerAdaptedFrom: "Adapted from the",
     originalApplicationLinkText: "original JavaSourceToTxt",
     byText: "by",
     lucasProfileText: "Lucas",
-    reportIssueLinkText: "Report an Issue / Suggestions",
+    reportIssueLinkText: "Report an issue",
+    suggestFeatureLinkText: "Suggest an improvement",
+    feedbackLinksLabel: "Project feedback",
 
     // Display names for package types
     defaultPackageNameDisplay: "(Default Package)",
@@ -377,11 +379,13 @@ export const translations = {
     versionNewsTitle: "Novedades de la Versión {version}",
 
     // Footer (page.tsx)
-    footerAdaptedFrom: "Dev_Proyect_to_TXT - Adaptado de",
+    footerAdaptedFrom: "Adaptado de",
     originalApplicationLinkText: "la aplicación original JavaSourceToTxt",
     byText: "de",
     lucasProfileText: "Lucas",
-    reportIssueLinkText: "Reportar un Problema / Sugerencias",
+    reportIssueLinkText: "Reportar un problema",
+    suggestFeatureLinkText: "Sugerir una mejora",
+    feedbackLinksLabel: "Comentarios sobre el proyecto",
 
     // Display names for package types
     defaultPackageNameDisplay: "(Paquete por Defecto)",

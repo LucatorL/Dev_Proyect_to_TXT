@@ -1,0 +1,9 @@
+<svg xmlns="http://www.w3.org/2000/svg" width="64" height="64" viewBox="0 0 64 64" fill="none">
+  <title>Dev_Proyect_to_TXT</title>
+  <rect width="64" height="64" rx="15" fill="#0F172A"/>
+  <g stroke-linecap="round" stroke-linejoin="round" stroke-width="6">
+    <path d="M16 17h4c5 0 7 4 9 8l4 7" stroke="#38BDF8"/>
+    <path d="M16 47h4c5 0 7-4 9-8l4-7" stroke="#38BDF8"/>
+    <path d="M33 32h15m-7-8 8 8-8 8" stroke="#F8FAFC"/>
+  </g>
+</svg>
