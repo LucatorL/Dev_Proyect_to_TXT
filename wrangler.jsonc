@@ -15,5 +15,14 @@
       "database_name": "dev-proyect-to-txt-leaderboard",
       "migrations_dir": "drizzle"
     }
-  ]
+  ],
+  "previews": {
+    "d1_databases": [
+      {
+        "binding": "DB",
+        "database_name": "dev-proyect-to-txt-leaderboard",
+        "database_id": "d90a112c-1a74-4a7b-99d7-bc951ba086a8"
+      }
+    ]
+  }
 }

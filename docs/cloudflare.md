@@ -34,6 +34,16 @@ After the build succeeds, open the Worker's **Domains → Add Domain**. Select `
 
 Configure the custom domain in the dashboard. Leave it out of the repository so contributors can deploy their own copies without taking over this hostname. Remove any conflicting DNS record for this exact subdomain before adding it. Keep unrelated DNS records as they are.
 
+## Branch previews
+
+This project's previews intentionally use the **same D1 database and public leaderboard as production**. The `previews.d1_databases` binding in `wrangler.jsonc` points to the existing database ID. Unifications made in a preview count in the public ranking.
+
+In the Worker's **Settings → Builds → Previews Base**, enable **Builds for Preview branches**. Use `npm run build:cloudflare` as the build command and `npx wrangler preview` as the preview command. Enable Preview URLs under **Domains** to make the branch previews accessible on their own addresses.
+
+Push changes to a branch other than `main` to create or update its preview. Merge the changes into `main` when they are ready for the public app.
+
+For a deployment in another Cloudflare account, update `previews.d1_databases.database_id` to that deployment's database ID. The preview command publishes code; the production deployment script applies pending SQL migrations to the shared database.
+
 ## Local checks
 
 ```bash
