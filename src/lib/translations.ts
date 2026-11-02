@@ -188,9 +188,7 @@ export const translations = {
     originalApplicationLinkText: "original JavaSourceToTxt",
     byText: "by",
     lucasProfileText: "Lucas",
-    reportIssueLinkText: "Report an issue",
-    suggestFeatureLinkText: "Suggest an improvement",
-    feedbackLinksLabel: "Project feedback",
+    reportIssueLinkText: "Report an Issue / Suggestions",
 
     // Display names for package types
     defaultPackageNameDisplay: "(Default Package)",
@@ -383,9 +381,7 @@ export const translations = {
     originalApplicationLinkText: "la aplicación original JavaSourceToTxt",
     byText: "de",
     lucasProfileText: "Lucas",
-    reportIssueLinkText: "Reportar un problema",
-    suggestFeatureLinkText: "Sugerir una mejora",
-    feedbackLinksLabel: "Comentarios sobre el proyecto",
+    reportIssueLinkText: "Reportar un Problema / Sugerencias",
 
     // Display names for package types
     defaultPackageNameDisplay: "(Paquete por Defecto)",

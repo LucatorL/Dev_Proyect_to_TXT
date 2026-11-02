@@ -27,7 +27,7 @@ import {
 } from "@/components/ui/alert-dialog";
 import { Button } from '@/components/ui/button';
 import { ScrollArea } from '@/components/ui/scroll-area';
-import { Bug, Lightbulb } from 'lucide-react';
+import { Github } from 'lucide-react';
 import { deleteSourceHandles, loadSourceHandles, requestSourcePermission, saveSourceHandles } from '@/lib/local-sources';
 
 
@@ -528,7 +528,7 @@ export default function DevProjectUnifierPage() {
           </AlertDialogContent>
         </AlertDialog>
       )}
-      <footer data-dotscroll-page data-dotscroll-label="Footer" className="page-scroll-safe text-center p-4 border-t text-sm text-muted-foreground flex flex-col gap-2 lg:flex-row justify-between items-center">
+      <footer data-dotscroll-page data-dotscroll-label="Footer" className="page-scroll-safe text-center p-4 border-t text-sm text-muted-foreground flex flex-col sm:flex-row justify-between items-center">
         <span className="flex flex-wrap items-center justify-center gap-x-1">
           <a href={REPOSITORY_URL} target="_blank" rel="noopener noreferrer" className="text-primary hover:underline">
             Dev_Proyect_to_TXT
@@ -561,20 +561,12 @@ export default function DevProjectUnifierPage() {
             {t('lucasProfileText', language)}
           </a>.
         </span>
-        <nav aria-label={t('feedbackLinksLabel', language)} className="flex flex-wrap items-center justify-center gap-x-2">
-          <Button variant="link" asChild className="text-muted-foreground hover:text-primary">
-            <a href={`${REPOSITORY_URL}/issues/new?title=${encodeURIComponent(language === 'es' ? '[Error] ' : '[Bug] ')}`} target="_blank" rel="noopener noreferrer">
-              <Bug className="mr-2 h-4 w-4" aria-hidden="true" />
-              {t('reportIssueLinkText', language)}
-            </a>
-          </Button>
-          <Button variant="link" asChild className="text-muted-foreground hover:text-primary">
-            <a href={`${REPOSITORY_URL}/issues/new?title=${encodeURIComponent(language === 'es' ? '[Sugerencia] ' : '[Suggestion] ')}`} target="_blank" rel="noopener noreferrer">
-              <Lightbulb className="mr-2 h-4 w-4" aria-hidden="true" />
-              {t('suggestFeatureLinkText', language)}
-            </a>
-          </Button>
-        </nav>
+        <Button variant="link" asChild className="mt-2 sm:mt-0 text-muted-foreground hover:text-primary">
+          <a href={`${REPOSITORY_URL}/issues/new`} target="_blank" rel="noopener noreferrer">
+            <Github className="mr-2 h-4 w-4" />
+            {t('reportIssueLinkText', language)}
+          </a>
+        </Button>
       </footer>
       <PageDots hasHistory={recents.length > 0} modalOpen={isSelectionModalOpen || isRecentInfoModalOpen || isChangelogModalOpen} language={language} />
     </div>
