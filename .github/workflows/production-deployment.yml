@@ -1,0 +1,31 @@
+# Links the repository's "Production" environment to the live app.
+#
+# Cloudflare Workers Builds deploys every push to main but does not create
+# GitHub deployments, so the repository sidebar kept showing the last Vercel
+# deployment. This workflow records a Production deployment that points to the
+# live domain each time a Cloudflare production build succeeds.
+name: Production deployment
+
+on:
+  check_run:
+    types: [completed]
+
+permissions:
+  contents: read
+  deployments: write
+
+jobs:
+  record:
+    if: >-
+      github.event.check_run.app.slug == 'cloudflare-workers-and-pages' &&
+      github.event.check_run.conclusion == 'success' &&
+      github.event.check_run.check_suite.head_branch == 'main'
+    runs-on: ubuntu-latest
+    environment:
+      name: Production
+      url: https://unificador.lucassanchez.net
+    steps:
+      - name: Record the Cloudflare deployment
+        run: echo "Cloudflare deployed ${COMMIT} to https://unificador.lucassanchez.net"
+        env:
+          COMMIT: ${{ github.event.check_run.head_sha }}
