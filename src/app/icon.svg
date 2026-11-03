@@ -1,13 +1,41 @@
-<svg xmlns="http://www.w3.org/2000/svg" width="512" height="512" viewBox="86 86 340 340" role="img" aria-label="Icono: varias carpetas apiladas detrás de una única hoja TXT">
-    <rect x="282" y="86" width="64" height="40" rx="12" fill="#22C55E" />
-    <rect x="146" y="108" width="220" height="140" rx="18" fill="#22C55E" />
-    <rect x="214" y="112" width="64" height="40" rx="12" fill="#0EA5E9" />
-    <rect x="146" y="134" width="220" height="140" rx="18" fill="#0EA5E9" />
-    <rect x="146" y="138" width="64" height="40" rx="12" fill="#F59E0B" />
-    <rect x="146" y="160" width="220" height="140" rx="18" fill="#F59E0B" />
-    <path d="M170 186 H312 L366 240 V402 Q366 426 342 426 H170 Q146 426 146 402 V210 Q146 186 170 186 Z" fill="#FFFFFF" />
-    <path d="M312 186 V222 Q312 240 330 240 H366 Z" fill="#D5DBE5" />
-    <line x1="174" y1="236" x2="282" y2="236" stroke="#F59E0B" stroke-width="16" stroke-linecap="round" />
-    <line x1="174" y1="268" x2="334" y2="268" stroke="#0EA5E9" stroke-width="16" stroke-linecap="round" />
-    <line x1="174" y1="300" x2="300" y2="300" stroke="#22C55E" stroke-width="16" stroke-linecap="round" />
-    <g fill="#1B2230" aria-label="TXT"><path d="M225 0V590H40V730H560V590H375V0Z" transform="translate(198.4 396) scale(0.064 -0.064)" /><path d="M20 0 216 377 33 730H198L274 570Q285 548 292.5 530.0Q300 512 302 504Q304 512 311.0 530.0Q318 548 328 570L406 730H567L384 377L580 0H415L327 180Q317 202 309.0 221.0Q301 240 297 250Q294 240 287.0 221.0Q280 202 269 180L181 0Z" transform="translate(236.8 396) scale(0.064 -0.064)" /><path d="M225 0V590H40V730H560V590H375V0Z" transform="translate(275.2 396) scale(0.064 -0.064)" /></g></svg>
+<svg xmlns="http://www.w3.org/2000/svg" width="512" height="512" viewBox="86 86 340 340" role="img" aria-label="Dev Proyect to TXT">
+    <style>
+        .dark { display: none; }
+        @media (prefers-color-scheme: dark) {
+            .light { display: none; }
+            .dark { display: inline; }
+        }
+    </style>
+    <defs>
+        <g id="artwork">
+            <rect x="282" y="86" width="64" height="40" rx="12" fill="#22C55E" />
+            <rect x="146" y="108" width="220" height="140" rx="18" fill="#22C55E" />
+            <rect x="214" y="112" width="64" height="40" rx="12" fill="#0EA5E9" />
+            <rect x="146" y="134" width="220" height="140" rx="18" fill="#0EA5E9" />
+            <rect x="146" y="138" width="64" height="40" rx="12" fill="#F59E0B" />
+            <rect x="146" y="160" width="220" height="140" rx="18" fill="#F59E0B" />
+            <path d="M170 186 H312 L366 240 V402 Q366 426 342 426 H170 Q146 426 146 402 V210 Q146 186 170 186 Z" fill="#FFFFFF" />
+            <path d="M312 186 V222 Q312 240 330 240 H366 Z" fill="#D5DBE5" />
+            <line x1="174" y1="236" x2="282" y2="236" stroke="#F59E0B" stroke-width="16" stroke-linecap="round" />
+            <line x1="174" y1="268" x2="334" y2="268" stroke="#0EA5E9" stroke-width="16" stroke-linecap="round" />
+            <line x1="174" y1="300" x2="300" y2="300" stroke="#22C55E" stroke-width="16" stroke-linecap="round" />
+            <g fill="#1B2230"><path d="M225 0V590H40V730H560V590H375V0Z" transform="translate(198.4 396) scale(0.064 -0.064)" /><path d="M20 0 216 377 33 730H198L274 570Q285 548 292.5 530.0Q300 512 302 504Q304 512 311.0 530.0Q318 548 328 570L406 730H567L384 377L580 0H415L327 180Q317 202 309.0 221.0Q301 240 297 250Q294 240 287.0 221.0Q280 202 269 180L181 0Z" transform="translate(236.8 396) scale(0.064 -0.064)" /><path d="M225 0V590H40V730H560V590H375V0Z" transform="translate(275.2 396) scale(0.064 -0.064)" /></g>
+        </g>
+        <g id="silhouette">
+            <rect x="282" y="86" width="64" height="40" rx="12" />
+            <rect x="214" y="112" width="64" height="40" rx="12" />
+            <rect x="146" y="138" width="64" height="40" rx="12" />
+            <rect x="146" y="108" width="220" height="318" rx="20" />
+        </g>
+    </defs>
+    <!-- Light theme: a navy outline and hard shadow keep the white sheet visible on light tabs -->
+    <g class="light" transform="translate(256 256) scale(0.87) translate(-267 -267)">
+        <g fill="#1B2230" stroke="#1B2230" stroke-width="20" stroke-linejoin="round">
+            <use href="#silhouette" transform="translate(22 22)" />
+            <use href="#silhouette" />
+        </g>
+        <use href="#artwork" />
+    </g>
+    <!-- Dark theme: the original artwork -->
+    <use class="dark" href="#artwork" />
+</svg>
